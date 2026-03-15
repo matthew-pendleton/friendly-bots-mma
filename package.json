@@ -1,12 +1,13 @@
 {
-  "name": "mma-discord-bot",
+  "name": "friendly-mma",
   "version": "1.0.0",
-  "description": "1v1 mock MMA fight bot for Discord",
+  "description": "1v1 mock MMA fight bot — part of the Friendly bot suite",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
   "dependencies": {
-    "discord.js": "^14.0.0"
+    "discord.js": "^14.0.0",
+    "dotenv": "^16.0.0"
   }
 }
