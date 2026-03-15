@@ -13,6 +13,10 @@
 
 const {
   Client,
+  EmbedBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
   GatewayIntentBits,
   PermissionsBitField,
   REST,
@@ -38,6 +42,7 @@ const activeFights = new Set();
 const MAX_HP          = 100;
 const TIMEOUT_MINUTES = 5;
 const ROUND_DELAY_MS  = 2000;
+const CHALLENGE_TIMEOUT_MS = 60000; // 60s to accept/decline
 
 // ── Move table ────────────────────────────────────────────────────────────────
 const MOVES = [
@@ -109,12 +114,23 @@ function rand(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-function hpBar(hp, max = MAX_HP) {
+function hpBar(name, hp, max = MAX_HP) {
   const filled = Math.round((hp / max) * 10);
   const empty  = 10 - filled;
-  const bar    = "█".repeat(Math.max(0, filled)) + "░".repeat(Math.max(0, empty));
-  const dot    = hp > 60 ? "🟢" : hp > 30 ? "🟡" : "🔴";
-  return `${dot} \`[${bar}]\` ${hp}/${max} HP`;
+  const bar    = "🟥".repeat(Math.max(0, filled)) + "⬜".repeat(Math.max(0, empty));
+  return `❤️ **${name}** ${bar} \`${hp}\``;
+}
+
+function buildFightEmbed({ title, log, fighters, color = 0xcc0000 }) {
+  return new EmbedBuilder()
+    .setColor(color)
+    .setTitle(title)
+    .setDescription(
+      log.map(l => `> ${l}`).join("\n") +
+      "\n\u200B\n" +
+      hpBar(fighters[0].name, fighters[0].hp) + "\n" +
+      hpBar(fighters[1].name, fighters[1].hp)
+    );
 }
 
 function pickMove() { return MOVES[Math.floor(Math.random() * MOVES.length)]; }
@@ -122,17 +138,19 @@ function isMiss()   { return Math.random() < 0.15; }
 function sleep(ms)  { return new Promise((r) => setTimeout(r, ms)); }
 
 // ── Fight engine ──────────────────────────────────────────────────────────────
-async function runFight(interaction, challenger, defender) {
+async function runFight(channel, challenger, defender) {
   const fighters = [
     { member: challenger, hp: MAX_HP, name: challenger.displayName },
     { member: defender,   hp: MAX_HP, name: defender.displayName },
   ];
 
-  await interaction.channel.send(
-    `## 🥋 FRIENDLY MMA\n` +
-    `**${fighters[0].name}** vs **${fighters[1].name}**\n` +
-    `> 🎤 The fighters step into the cage...`
-  );
+  const LOG_SIZE = 4;
+  const log = ["🎤 The fighters step into the cage..."];
+  const embedTitle = `🥋 <@${challenger.id}> vs <@${defender.id}>`;
+
+  const fightMsg = await channel.send({
+    embeds: [buildFightEmbed({ title: embedTitle, log, fighters })],
+  });
 
   await sleep(ROUND_DELAY_MS);
 
@@ -143,23 +161,24 @@ async function runFight(interaction, challenger, defender) {
     const atk = fighters[attacker];
     const def = fighters[attacker === 0 ? 1 : 0];
 
-    let msg = `**Round ${round}** — **${atk.name}** attacks!\n`;
-
+    let line;
     if (isMiss()) {
       const miss = MISS_FLAVOR[Math.floor(Math.random() * MISS_FLAVOR.length)];
-      msg += `> 💨 **${atk.name}** ${miss} — no damage!\n`;
+      line = `💨 **Rnd ${round}** — **${atk.name}** ${miss}`;
     } else {
       const move = pickMove();
       const dmg  = rand(move.damage[0], move.damage[1]);
       def.hp = Math.max(0, def.hp - dmg);
-      msg += `> 🥊 **${atk.name}** ${move.flavor} — **${move.name}** for **${dmg} damage!**\n`;
+      line = `🥊 **Rnd ${round}** — **${atk.name}** ${move.flavor} · **${move.name}** · **-${dmg} HP**`;
     }
 
-    msg +=
-      `\n🔵 **${fighters[0].name}:** ${hpBar(fighters[0].hp)}\n` +
-      `🔴 **${fighters[1].name}:** ${hpBar(fighters[1].hp)}`;
+    log.push(line);
+    if (log.length > LOG_SIZE) log.shift();
 
-    await interaction.channel.send(msg);
+    await fightMsg.edit({
+      embeds: [buildFightEmbed({ title: embedTitle, log, fighters })],
+    });
+
     await sleep(ROUND_DELAY_MS);
 
     if (fighters[0].hp <= 0 || fighters[1].hp <= 0) break;
@@ -171,35 +190,91 @@ async function runFight(interaction, challenger, defender) {
   const loser  = fighters[0].hp <= 0 ? fighters[0] : fighters[1];
   const winner = fighters[0].hp <= 0 ? fighters[1] : fighters[0];
 
-  await interaction.channel.send(
-    `## 🏆 KO! It's over!\n` +
-    `**${winner.name}** wins by knockout! 🎉\n` +
-    `**${loser.name}** has been defeated and is being timed out for ${TIMEOUT_MINUTES} minutes. 😬`
-  );
+  // Final KO embed
+  await fightMsg.edit({
+    embeds: [
+      new EmbedBuilder()
+        .setColor(0xffd700)
+        .setTitle(`💀 Fight Over! 💀`)
+        .setDescription(
+          `> 🏆 **${winner.name}** wins by knockout!\n` +
+          `> 😬 **${loser.name}** has been defeated.\n` +
+          `\n\u200B\n` +
+          hpBar(fighters[0].name, fighters[0].hp) + "\n" +
+          hpBar(fighters[1].name, fighters[1].hp)
+        ),
+    ],
+  });
 
   try {
     await loser.member.timeout(
       TIMEOUT_MINUTES * 60 * 1000,
       `Lost a Friendly MMA fight against ${winner.name}`
     );
-    await interaction.channel.send(
-      `🔇 **${loser.name}** has been muted for ${TIMEOUT_MINUTES} minutes. Take the L.`
+    await channel.send(
+      `🔇 <@${loser.member.id}> has been muted for ${TIMEOUT_MINUTES} minutes. Take the L.`
     );
   } catch {
-    await interaction.channel.send(
-      `⚠️ Couldn't time out **${loser.name}** — they may be a mod or above my role. They escape justice... for now.`
+    await channel.send(
+      `⚠️ Couldn't time out <@${loser.member.id}> — they may be a mod or above my role. They escape justice... for now.`
     );
   }
 }
 
 // ── Interaction handler ───────────────────────────────────────────────────────
 client.on("interactionCreate", async (interaction) => {
+
+  // ── Button: accept/decline challenge ─────────────────────────────────────
+  if (interaction.isButton()) {
+    const [action, challengerId, defenderId] = interaction.customId.split(":");
+
+    if (!["mma_accept", "mma_decline"].includes(action)) return;
+
+    // Only the challenged user can respond
+    if (interaction.user.id !== defenderId) {
+      return interaction.reply({ content: "⚠️ This challenge isn't for you.", ephemeral: true });
+    }
+
+    if (action === "mma_decline") {
+      await interaction.update({
+        content: `❌ <@${defenderId}> declined the challenge.`,
+        embeds: [],
+        components: [],
+      });
+      const fightKey = [challengerId, defenderId].sort().join("-");
+      activeFights.delete(fightKey);
+      return;
+    }
+
+    if (action === "mma_accept") {
+      await interaction.update({
+        content: `✅ <@${defenderId}> accepted the challenge! Let the fight begin! 💥`,
+        embeds: [],
+        components: [],
+      });
+
+      const challenger = await interaction.guild.members.fetch(challengerId);
+      const defender   = await interaction.guild.members.fetch(defenderId);
+
+      try {
+        await runFight(interaction.channel, challenger, defender);
+      } catch (err) {
+        console.error("Fight error:", err);
+        await interaction.channel.send("💥 Something went wrong mid-fight. The ref called it off.");
+      } finally {
+        const fightKey = [challengerId, defenderId].sort().join("-");
+        activeFights.delete(fightKey);
+      }
+    }
+    return;
+  }
+
   if (!interaction.isChatInputCommand()) return;
   if (interaction.commandName !== "friendly-mma") return;
 
   const sub = interaction.options.getSubcommand();
 
-  // /friendly-mma help
+  // ── /friendly-mma help ────────────────────────────────────────────────────
   if (sub === "help") {
     return interaction.reply({
       content:
@@ -217,12 +292,11 @@ client.on("interactionCreate", async (interaction) => {
     });
   }
 
-  // /friendly-mma fight @user
+  // ── /friendly-mma fight @user ─────────────────────────────────────────────
   if (sub === "fight") {
-    // Defer immediately — gives us unlimited time to respond
     await interaction.deferReply();
 
-    const opponent = interaction.options.getMember("opponent");
+    const opponent     = interaction.options.getMember("opponent");
     const opponentUser = interaction.options.getUser("opponent");
 
     if (!opponent || !opponentUser) {
@@ -251,18 +325,34 @@ client.on("interactionCreate", async (interaction) => {
 
     activeFights.add(fightKey);
 
+    // Build accept/decline buttons
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(`mma_accept:${interaction.user.id}:${opponent.id}`)
+        .setLabel("Accept")
+        .setStyle(ButtonStyle.Success),
+      new ButtonBuilder()
+        .setCustomId(`mma_decline:${interaction.user.id}:${opponent.id}`)
+        .setLabel("Decline")
+        .setStyle(ButtonStyle.Danger)
+    );
+
     await interaction.editReply({
-      content: `🥋 **${interaction.member.displayName}** has challenged **${opponent.displayName}**! Fight starting...`,
+      content: `🥋 <@${interaction.user.id}> has challenged <@${opponent.id}> to an MMA fight!\n<@${opponent.id}>, do you accept?`,
+      components: [row],
     });
 
-    try {
-      await runFight(interaction, interaction.member, opponent);
-    } catch (err) {
-      console.error("Fight error:", err);
-      await interaction.channel.send("💥 Something went wrong mid-fight. The ref called it off.");
-    } finally {
+    // Auto-expire the challenge after 60s
+    setTimeout(async () => {
+      if (!activeFights.has(fightKey)) return; // already resolved
       activeFights.delete(fightKey);
-    }
+      try {
+        await interaction.editReply({
+          content: `⏱️ <@${opponent.id}> didn't respond in time. Challenge expired.`,
+          components: [],
+        });
+      } catch { /* message may already be gone */ }
+    }, CHALLENGE_TIMEOUT_MS);
   }
 });
 
