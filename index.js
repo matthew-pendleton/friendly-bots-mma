@@ -25,6 +25,9 @@ const {
   ActivityType,
 } = require("discord.js");
 
+const fs   = require("fs");
+const path = require("path");
+
 require("dotenv").config();
 
 const client = new Client({
@@ -36,7 +39,6 @@ const client = new Client({
 });
 
 // ── Active fight tracking (per user, not per pair) ───────────────────────────
-// Tracks individual user IDs so no one can be in two fights at once
 const activeFighters = new Set();
 
 function addFighters(...ids)    { ids.forEach(id => activeFighters.add(id)); }
@@ -44,10 +46,37 @@ function removeFighters(...ids) { ids.forEach(id => activeFighters.delete(id)); 
 function isFighting(...ids)     { return ids.some(id => activeFighters.has(id)); }
 
 // ── Config ────────────────────────────────────────────────────────────────────
-const MAX_HP          = 100;
-const TIMEOUT_MINUTES = 5;
-const ROUND_DELAY_MS  = 1000;
-const CHALLENGE_TIMEOUT_MS = 60000; // 60s to accept/decline
+const MAX_HP               = 100;
+const TIMEOUT_MINUTES      = 5;
+const ROUND_DELAY_MS       = 1000;
+const CHALLENGE_TIMEOUT_MS = 60000;
+const STATS_FILE           = path.join(__dirname, "stats.json");
+
+// ── Stats persistence ─────────────────────────────────────────────────────────
+function loadStats() {
+  try {
+    if (fs.existsSync(STATS_FILE)) return JSON.parse(fs.readFileSync(STATS_FILE, "utf8"));
+  } catch { /* corrupt file — start fresh */ }
+  return {};
+}
+
+function saveStats(stats) {
+  fs.writeFileSync(STATS_FILE, JSON.stringify(stats, null, 2));
+}
+
+function recordResult(winnerId, winnerName, loserId, loserName) {
+  const stats = loadStats();
+
+  if (!stats[winnerId]) stats[winnerId] = { name: winnerName, wins: 0, losses: 0 };
+  if (!stats[loserId])  stats[loserId]  = { name: loserName,  wins: 0, losses: 0 };
+
+  stats[winnerId].name   = winnerName; // keep name fresh
+  stats[loserId].name    = loserName;
+  stats[winnerId].wins  += 1;
+  stats[loserId].losses += 1;
+
+  saveStats(stats);
+}
 
 // ── Move table ────────────────────────────────────────────────────────────────
 const MOVES = [
@@ -76,7 +105,7 @@ const MISS_FLAVOR = [
   "shoots for a takedown and faceplants 😬",
 ];
 
-// ── Challenge flavor ─────────────────────────────────────────────────────────
+// ── Challenge flavor ──────────────────────────────────────────────────────────
 const CHALLENGE_TAUNTS = [
   (c, d) => `👊 <@${c}> is tired of <@${d}>'s nonsense and wants to settle this the old fashioned way.`,
   (c, d) => `🐔 <@${c}> just called <@${d}> a coward to their face. Publicly. In front of everyone.`,
@@ -137,16 +166,22 @@ const commands = [
         .setName("fight")
         .setDescription("Challenge someone to a 1v1 MMA fight")
         .addUserOption((opt) =>
-          opt
-            .setName("opponent")
-            .setDescription("The person you want to fight")
-            .setRequired(true)
+          opt.setName("opponent").setDescription("The person you want to fight").setRequired(true)
         )
     )
     .addSubcommand((sub) =>
       sub
-        .setName("help")
-        .setDescription("How Friendly MMA works")
+        .setName("stats")
+        .setDescription("View fight stats for a user")
+        .addUserOption((opt) =>
+          opt.setName("user").setDescription("The user to look up (defaults to you)").setRequired(false)
+        )
+    )
+    .addSubcommand((sub) =>
+      sub.setName("leaderboard").setDescription("Show the server fight leaderboard")
+    )
+    .addSubcommand((sub) =>
+      sub.setName("help").setDescription("How Friendly MMA works")
     ),
 ].map((cmd) => cmd.toJSON());
 
@@ -155,9 +190,7 @@ async function registerCommands() {
   const rest = new REST({ version: "10" }).setToken(process.env.DISCORD_TOKEN);
   try {
     console.log("🔄 Registering slash commands...");
-    await rest.put(Routes.applicationCommands(process.env.CLIENT_ID), {
-      body: commands,
-    });
+    await rest.put(Routes.applicationCommands(process.env.CLIENT_ID), { body: commands });
     console.log("✅ Slash commands registered globally.");
   } catch (err) {
     console.error("❌ Failed to register commands:", err);
@@ -170,10 +203,10 @@ function rand(min, max) {
 }
 
 function hpBar(name, hp, nameWidth, max = MAX_HP) {
-  const filled  = Math.round((hp / max) * 10);
-  const empty   = 10 - filled;
-  const bar     = "🟥".repeat(Math.max(0, filled)) + "⬜".repeat(Math.max(0, empty));
-  const padded  = name.padEnd(nameWidth, " ");
+  const filled = Math.round((hp / max) * 10);
+  const empty  = 10 - filled;
+  const bar    = "🟥".repeat(Math.max(0, filled)) + "⬜".repeat(Math.max(0, empty));
+  const padded = name.padEnd(nameWidth, " ");
   return `❤️ \`${padded}\` ${bar} \`${hp}\``;
 }
 
@@ -245,6 +278,9 @@ async function runFight(channel, challenger, defender) {
   const loser  = fighters[0].hp <= 0 ? fighters[0] : fighters[1];
   const winner = fighters[0].hp <= 0 ? fighters[1] : fighters[0];
 
+  // Record stats
+  recordResult(winner.member.id, winner.name, loser.member.id, loser.name);
+
   // Final KO embed
   const nameWidth = Math.max(fighters[0].name.length, fighters[1].name.length);
   await fightMsg.edit({
@@ -267,13 +303,9 @@ async function runFight(channel, challenger, defender) {
       TIMEOUT_MINUTES * 60 * 1000,
       `Lost a Friendly MMA fight against ${winner.name}`
     );
-    await channel.send(
-      `🔇 <@${loser.member.id}> has been muted for ${TIMEOUT_MINUTES} minutes. Take the L.`
-    );
+    await channel.send(`🔇 <@${loser.member.id}> has been muted for ${TIMEOUT_MINUTES} minutes. Take the L.`);
   } catch {
-    await channel.send(
-      `⚠️ Couldn't time out <@${loser.member.id}> — they may be a mod or above my role. They escape justice... for now.`
-    );
+    await channel.send(`⚠️ Couldn't time out <@${loser.member.id}> — they may be a mod or above my role. They escape justice... for now.`);
   }
 }
 
@@ -286,18 +318,13 @@ client.on("interactionCreate", async (interaction) => {
 
     if (!["mma_accept", "mma_decline"].includes(action)) return;
 
-    // Only the challenged user can respond
     if (interaction.user.id !== defenderId) {
       return interaction.reply({ content: "⚠️ This challenge isn't for you.", ephemeral: true });
     }
 
     if (action === "mma_decline") {
       const declineLine = pickFrom(DECLINE_LINES, challengerId, defenderId);
-      await interaction.update({
-        content: declineLine,
-        embeds: [],
-        components: [],
-      });
+      await interaction.update({ content: declineLine, embeds: [], components: [] });
       removeFighters(challengerId, defenderId);
       return;
     }
@@ -337,6 +364,8 @@ client.on("interactionCreate", async (interaction) => {
         `Challenge a server member to a mock MMA fight. The loser gets timed out.\n\n` +
         `**Commands**\n` +
         `\`/friendly-mma fight @user\` — challenge someone\n` +
+        `\`/friendly-mma stats [@user]\` — view fight stats\n` +
+        `\`/friendly-mma leaderboard\` — server rankings\n` +
         `\`/friendly-mma help\` — show this message\n\n` +
         `**How it works**\n` +
         `> Both fighters start at **${MAX_HP} HP**. Rounds alternate attacks until someone hits 0.\n` +
@@ -344,6 +373,76 @@ client.on("interactionCreate", async (interaction) => {
         `> The loser is timed out for **${TIMEOUT_MINUTES} minutes** automatically.\n\n` +
         `*Part of the **Friendly** bot suite.*`,
       ephemeral: true,
+    });
+  }
+
+  // ── /friendly-mma stats ───────────────────────────────────────────────────
+  if (sub === "stats") {
+    const target     = interaction.options.getUser("user") ?? interaction.user;
+    const stats      = loadStats();
+    const userStats  = stats[target.id];
+
+    if (!userStats || (userStats.wins === 0 && userStats.losses === 0)) {
+      return interaction.reply({
+        content: `📭 No fight history found for **${target.displayName ?? target.username}**.`,
+        ephemeral: true,
+      });
+    }
+
+    const total  = userStats.wins + userStats.losses;
+    const ratio  = userStats.losses === 0
+      ? userStats.wins.toFixed(2)
+      : (userStats.wins / userStats.losses).toFixed(2);
+    const winPct = ((userStats.wins / total) * 100).toFixed(1);
+
+    return interaction.reply({
+      embeds: [
+        new EmbedBuilder()
+          .setColor(0xcc0000)
+          .setTitle(`🥋 ${userStats.name} — Fight Stats`)
+          .setDescription(
+            `🏆 **Wins** \`${userStats.wins}\`\n` +
+            `💀 **Losses** \`${userStats.losses}\`\n` +
+            `📊 **W/L Ratio** \`${ratio}\`\n` +
+            `🥊 **Total Fights** \`${total}\`\n` +
+            `📈 **Win Rate** \`${winPct}%\``
+          ),
+      ],
+    });
+  }
+
+  // ── /friendly-mma leaderboard ─────────────────────────────────────────────
+  if (sub === "leaderboard") {
+    const stats = loadStats();
+    const entries = Object.values(stats)
+      .filter(u => u.wins + u.losses > 0)
+      .sort((a, b) => {
+        // Sort by wins first, then by W/L ratio
+        if (b.wins !== a.wins) return b.wins - a.wins;
+        const ratioA = a.losses === 0 ? a.wins : a.wins / a.losses;
+        const ratioB = b.losses === 0 ? b.wins : b.wins / b.losses;
+        return ratioB - ratioA;
+      })
+      .slice(0, 10);
+
+    if (entries.length === 0) {
+      return interaction.reply({ content: "📭 No fights recorded yet.", ephemeral: true });
+    }
+
+    const medals = ["🥇", "🥈", "🥉"];
+    const rows = entries.map((u, i) => {
+      const ratio  = u.losses === 0 ? u.wins.toFixed(2) : (u.wins / u.losses).toFixed(2);
+      const medal  = medals[i] ?? `**${i + 1}.**`;
+      return `${medal} **${u.name}** — \`${u.wins}W / ${u.losses}L\` · ratio \`${ratio}\``;
+    });
+
+    return interaction.reply({
+      embeds: [
+        new EmbedBuilder()
+          .setColor(0xffd700)
+          .setTitle("🏆 Friendly MMA — Leaderboard")
+          .setDescription(rows.join("\n")),
+      ],
     });
   }
 
@@ -363,8 +462,6 @@ client.on("interactionCreate", async (interaction) => {
     if (opponentUser.bot) {
       return interaction.editReply({ content: "❌ Bots don't fight. We are pacifists. 🕊️" });
     }
-
-    // Check if opponent is currently timed out
     if (opponent.communicationDisabledUntil && opponent.communicationDisabledUntil > new Date()) {
       return interaction.editReply({ content: `⚠️ <@${opponent.id}> is currently timed out. Let them serve their time first.` });
     }
@@ -377,17 +474,12 @@ client.on("interactionCreate", async (interaction) => {
     }
 
     if (isFighting(interaction.user.id, opponent.id)) {
-      const who = activeFighters.has(interaction.user.id)
-        ? "You are"
-        : `<@${opponent.id}> is`;
-      return interaction.editReply({
-        content: `⚠️ ${who} already in a fight. Wait for it to finish.`,
-      });
+      const who = activeFighters.has(interaction.user.id) ? "You are" : `<@${opponent.id}> is`;
+      return interaction.editReply({ content: `⚠️ ${who} already in a fight. Wait for it to finish.` });
     }
 
     addFighters(interaction.user.id, opponent.id);
 
-    // Build accept/decline buttons
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setCustomId(`mma_accept:${interaction.user.id}:${opponent.id}`)
@@ -407,7 +499,7 @@ client.on("interactionCreate", async (interaction) => {
 
     // Auto-expire the challenge after 60s
     setTimeout(async () => {
-      if (!isFighting(interaction.user.id, opponent.id)) return; // already resolved
+      if (!isFighting(interaction.user.id, opponent.id)) return;
       removeFighters(interaction.user.id, opponent.id);
       try {
         await interaction.editReply({
