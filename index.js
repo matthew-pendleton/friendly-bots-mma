@@ -164,22 +164,24 @@ function rand(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-function hpBar(name, hp, max = MAX_HP) {
-  const filled = Math.round((hp / max) * 10);
-  const empty  = 10 - filled;
-  const bar    = "🟥".repeat(Math.max(0, filled)) + "⬜".repeat(Math.max(0, empty));
-  return `❤️ **${name}** ${bar} \`${hp}\``;
+function hpBar(name, hp, nameWidth, max = MAX_HP) {
+  const filled  = Math.round((hp / max) * 10);
+  const empty   = 10 - filled;
+  const bar     = "🟥".repeat(Math.max(0, filled)) + "⬜".repeat(Math.max(0, empty));
+  const padded  = name.padEnd(nameWidth, " ");
+  return `❤️ \`${padded}\` ${bar} \`${hp}\``;
 }
 
 function buildFightEmbed({ title, log, fighters, color = 0xcc0000 }) {
+  const nameWidth = Math.max(fighters[0].name.length, fighters[1].name.length);
   return new EmbedBuilder()
     .setColor(color)
     .setTitle(title)
     .setDescription(
       log.map(l => `> ${l}`).join("\n") +
       "\n\u200B\n" +
-      hpBar(fighters[0].name, fighters[0].hp) + "\n" +
-      hpBar(fighters[1].name, fighters[1].hp)
+      hpBar(fighters[0].name, fighters[0].hp, nameWidth) + "\n" +
+      hpBar(fighters[1].name, fighters[1].hp, nameWidth)
     );
 }
 
@@ -194,7 +196,6 @@ async function runFight(channel, challenger, defender) {
     { member: defender,   hp: MAX_HP, name: defender.displayName },
   ];
 
-  const LOG_SIZE = 4;
   const log = ["🎤 The fighters step into the cage..."];
   const embedTitle = `🥋 <@${challenger.id}> vs <@${defender.id}>`;
 
@@ -223,7 +224,6 @@ async function runFight(channel, challenger, defender) {
     }
 
     log.push(line);
-    if (log.length > LOG_SIZE) log.shift();
 
     await fightMsg.edit({
       embeds: [buildFightEmbed({ title: embedTitle, log, fighters })],
@@ -241,6 +241,7 @@ async function runFight(channel, challenger, defender) {
   const winner = fighters[0].hp <= 0 ? fighters[1] : fighters[0];
 
   // Final KO embed
+  const nameWidth = Math.max(fighters[0].name.length, fighters[1].name.length);
   await fightMsg.edit({
     embeds: [
       new EmbedBuilder()
@@ -250,8 +251,8 @@ async function runFight(channel, challenger, defender) {
           `> 🏆 **${winner.name}** wins by knockout!\n` +
           `> 😬 **${loser.name}** has been defeated.\n` +
           `\n\u200B\n` +
-          hpBar(fighters[0].name, fighters[0].hp) + "\n" +
-          hpBar(fighters[1].name, fighters[1].hp)
+          hpBar(fighters[0].name, fighters[0].hp, nameWidth) + "\n" +
+          hpBar(fighters[1].name, fighters[1].hp, nameWidth)
         ),
     ],
   });
