@@ -202,7 +202,7 @@ async function runFight(channel, challenger, defender) {
   ];
 
   const log = ["🎤 The fighters step into the cage..."];
-  const embedTitle = `🥋 <@${challenger.id}> vs <@${defender.id}>`;
+  const embedTitle = `🥋 ${fighters[0].name} vs ${fighters[1].name}`;
 
   const fightMsg = await channel.send({
     embeds: [buildFightEmbed({ title: embedTitle, log, fighters })],
