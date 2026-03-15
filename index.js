@@ -395,18 +395,26 @@ client.on("interactionCreate", async (interaction) => {
       : (userStats.wins / userStats.losses).toFixed(2);
     const winPct = ((userStats.wins / total) * 100).toFixed(1);
 
+    // Build monospace-aligned stat rows
+    const statRows = [
+      ["🏆", "Wins",         String(userStats.wins)],
+      ["💀", "Losses",       String(userStats.losses)],
+      ["📊", "W/L Ratio",    ratio],
+      ["🥊", "Total Fights", String(total)],
+      ["📈", "Win Rate",     `${winPct}%`],
+    ];
+    const labelW = Math.max(...statRows.map(r => r[1].length));
+    const valueW = Math.max(...statRows.map(r => r[2].length));
+    const statLines = statRows.map(([icon, label, value]) =>
+      `${icon} \`${label.padEnd(labelW)}\`  \`${value.padStart(valueW)}\``
+    ).join("\n");
+
     return interaction.reply({
       embeds: [
         new EmbedBuilder()
           .setColor(0xcc0000)
           .setTitle(`🥋 ${userStats.name} — Fight Stats`)
-          .setDescription(
-            `🏆 **Wins** \`${userStats.wins}\`\n` +
-            `💀 **Losses** \`${userStats.losses}\`\n` +
-            `📊 **W/L Ratio** \`${ratio}\`\n` +
-            `🥊 **Total Fights** \`${total}\`\n` +
-            `📈 **Win Rate** \`${winPct}%\``
-          ),
+          .setDescription(statLines),
       ],
     });
   }
@@ -429,19 +437,33 @@ client.on("interactionCreate", async (interaction) => {
       return interaction.reply({ content: "📭 No fights recorded yet.", ephemeral: true });
     }
 
-    const medals = ["🥇", "🥈", "🥉"];
-    const rows = entries.map((u, i) => {
-      const ratio  = u.losses === 0 ? u.wins.toFixed(2) : (u.wins / u.losses).toFixed(2);
-      const medal  = medals[i] ?? `**${i + 1}.**`;
-      return `${medal} **${u.name}** — \`${u.wins}W / ${u.losses}L\` · ratio \`${ratio}\``;
+    const medals  = ["🥇", "🥈", "🥉"];
+    const ranked   = entries.map((u, i) => {
+      const ratio = u.losses === 0 ? u.wins.toFixed(2) : (u.wins / u.losses).toFixed(2);
+      return { medal: medals[i] ?? `${i + 1}. `, name: u.name, wins: u.wins, losses: u.losses, ratio };
     });
+
+    // Column widths
+    const nameW  = Math.max(4, ...ranked.map(r => r.name.length));
+    const winsW  = Math.max(1, ...ranked.map(r => String(r.wins).length));
+    const lossW  = Math.max(1, ...ranked.map(r => String(r.losses).length));
+    const ratioW = Math.max(5, ...ranked.map(r => r.ratio.length));
+
+    const header = `${"RANK".padEnd(6)} ${"NAME".padEnd(nameW)}  ${"W".padStart(winsW)}  ${"L".padStart(lossW)}  ${"RATIO".padStart(ratioW)}`;
+    const divider = "─".repeat(header.length);
+    const tableRows = ranked.map((r, i) => {
+      const rank = `${r.medal} ${String(i + 1).padEnd(2)}`.slice(0, 6);
+      return `${rank} ${r.name.padEnd(nameW)}  ${String(r.wins).padStart(winsW)}  ${String(r.losses).padStart(lossW)}  ${r.ratio.padStart(ratioW)}`;
+    });
+
+    const table = "```\n" + header + "\n" + divider + "\n" + tableRows.join("\n") + "\n```";
 
     return interaction.reply({
       embeds: [
         new EmbedBuilder()
           .setColor(0xffd700)
           .setTitle("🏆 Friendly MMA — Leaderboard")
-          .setDescription(rows.join("\n")),
+          .setDescription(table),
       ],
     });
   }
