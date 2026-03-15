@@ -46,7 +46,7 @@ function isFighting(...ids)     { return ids.some(id => activeFighters.has(id));
 // ── Config ────────────────────────────────────────────────────────────────────
 const MAX_HP          = 100;
 const TIMEOUT_MINUTES = 5;
-const ROUND_DELAY_MS  = 2000;
+const ROUND_DELAY_MS  = 1000;
 const CHALLENGE_TIMEOUT_MS = 60000; // 60s to accept/decline
 
 // ── Move table ────────────────────────────────────────────────────────────────
@@ -362,6 +362,11 @@ client.on("interactionCreate", async (interaction) => {
     }
     if (opponentUser.bot) {
       return interaction.editReply({ content: "❌ Bots don't fight. We are pacifists. 🕊️" });
+    }
+
+    // Check if opponent is currently timed out
+    if (opponent.communicationDisabledUntil && opponent.communicationDisabledUntil > new Date()) {
+      return interaction.editReply({ content: `⚠️ <@${opponent.id}> is currently timed out. Let them serve their time first.` });
     }
 
     const botMember = interaction.guild.members.me;
