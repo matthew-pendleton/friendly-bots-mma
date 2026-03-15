@@ -219,18 +219,19 @@ client.on("interactionCreate", async (interaction) => {
 
   // /friendly-mma fight @user
   if (sub === "fight") {
-    const opponent = interaction.options.getMember("opponent");
-
     // Defer immediately — gives us unlimited time to respond
     await interaction.deferReply();
 
-    if (!opponent) {
+    const opponent = interaction.options.getMember("opponent");
+    const opponentUser = interaction.options.getUser("opponent");
+
+    if (!opponent || !opponentUser) {
       return interaction.editReply({ content: "❌ Couldn't find that user in this server." });
     }
-    if (opponent.id === interaction.user.id) {
+    if (opponentUser.id === interaction.user.id) {
       return interaction.editReply({ content: "❌ You can't fight yourself... or can you? (You can't.)" });
     }
-    if (opponent.user.bot) {
+    if (opponentUser.bot) {
       return interaction.editReply({ content: "❌ Bots don't fight. We are pacifists. 🕊️" });
     }
 
