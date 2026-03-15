@@ -71,6 +71,56 @@ const MISS_FLAVOR = [
   "shoots for a takedown and faceplants 😬",
 ];
 
+// ── Challenge flavor ─────────────────────────────────────────────────────────
+const CHALLENGE_TAUNTS = [
+  (c, d) => `👊 <@${c}> is tired of <@${d}>'s nonsense and wants to settle this the old fashioned way.`,
+  (c, d) => `🐔 <@${c}> just called <@${d}> a coward to their face. Publicly. In front of everyone.`,
+  (c, d) => `💅 <@${c}> looked <@${d}> dead in the eyes and said "you wouldn't last 30 seconds."`,
+  (c, d) => `🤡 <@${c}> has formally declared <@${d}> the most punchable person in the server.`,
+  (c, d) => `🪑 <@${c}> just threw a folding chair in <@${d}>'s direction. This is a challenge.`,
+  (c, d) => `😤 <@${c}> has had ENOUGH of <@${d}> and is ready to do something about it.`,
+  (c, d) => `🥩 <@${c}> called <@${d}>'s technique "embarrassing" and said they fight like a wet napkin.`,
+  (c, d) => `🔔 DING DING. <@${c}> just stepped into <@${d}>'s mentions swinging.`,
+  (c, d) => `🗑️ <@${c}> just dragged <@${d}> out of the trash and challenged them to a fight. Disrespectful.`,
+  (c, d) => `💀 <@${c}> told <@${d}> to "catch these hands" and meant every word of it.`,
+  (c, d) => `🎤 <@${c}> dropped the mic, picked it back up, and used it to challenge <@${d}>.`,
+  (c, d) => `🧂 <@${c}> is SALTY and <@${d}> is the reason. Time to throw hands.`,
+  (c, d) => `👀 <@${c}> has been staring at <@${d}> for the past 10 minutes. This is a challenge.`,
+  (c, d) => `🐣 <@${c}> says <@${d}> fights like they're still in tutorial mode.`,
+  (c, d) => `🚨 <@${c}> has issued a formal citation to <@${d}> for existing too confidently.`,
+  (c, d) => `🎯 <@${c}> pointed directly at <@${d}> and said "you. cage. now."`,
+  (c, d) => `😂 <@${c}> started laughing at <@${d}>'s fighting stance and now it's personal.`,
+  (c, d) => `🩲 <@${c}> told <@${d}> their ground game is so bad it should be illegal.`,
+  (c, d) => `🔥 <@${c}> just sent <@${d}> a one-word message: "fight." No punctuation. Dead serious.`,
+  (c, d) => `🪤 <@${c}> has set a trap and <@${d}> is walking right into it.`,
+];
+
+const DECLINE_LINES = [
+  (c, d) => `🐔 <@${d}> took one look at <@${c}> and said absolutely not. Cowardice lives here.`,
+  (c, d) => `😂 <@${d}> declined. Apparently <@${c}> isn't worth the effort. Noted.`,
+  (c, d) => `🏃 <@${d}> has left the building. <@${c}> stands alone in the cage, confused.`,
+  (c, d) => `🧘 <@${d}> said they're "at peace" and refuse to engage. <@${c}> is fuming.`,
+  (c, d) => `📵 <@${d}> saw the challenge notification and put their phone face down. Declined.`,
+  (c, d) => `🩹 <@${d}> claims a prior injury. Very convenient. <@${c}> doesn't believe it for a second.`,
+  (c, d) => `🤝 <@${d}> attempted to shake <@${c}>'s hand and walk away. Smooth. Cowardly, but smooth.`,
+  (c, d) => `💅 <@${d}> said they just got their nails done and can't risk it right now.`,
+];
+
+const TIMEOUT_LINES = [
+  (c, d) => `⏱️ <@${c}> challenged <@${d}>... but <@${d}> was too busy doing literally anything else. Challenge expired.`,
+  (c, d) => `👻 <@${c}> threw down the gauntlet and <@${d}> just ghosted them. Embarrassing for everyone.`,
+  (c, d) => `😴 <@${c}> issued a challenge and <@${d}> apparently fell asleep. Fight cancelled.`,
+  (c, d) => `🗓️ <@${d}> has asked to reschedule for a time that works better for them. <@${c}> is not okay with this.`,
+  (c, d) => `📺 <@${c}> is still waiting. <@${d}> is presumably watching TV. Challenge expired.`,
+  (c, d) => `🤷 <@${c}> waited a full minute. <@${d}> said nothing. The cage sits empty.`,
+  (c, d) => `🚶 <@${d}> walked away from <@${c}>'s challenge without saying a word. Absolutely ruthless.`,
+  (c, d) => `💨 <@${d}> vanished into thin air. <@${c}> is left standing in the cage alone, looking silly.`,
+];
+
+function pickFrom(arr, ...args) {
+  return arr[Math.floor(Math.random() * arr.length)](...args);
+}
+
 // ── Slash command definitions ─────────────────────────────────────────────────
 const commands = [
   new SlashCommandBuilder()
@@ -236,8 +286,9 @@ client.on("interactionCreate", async (interaction) => {
     }
 
     if (action === "mma_decline") {
+      const declineLine = pickFrom(DECLINE_LINES, challengerId, defenderId);
       await interaction.update({
-        content: `❌ <@${defenderId}> declined the challenge.`,
+        content: declineLine,
         embeds: [],
         components: [],
       });
@@ -337,8 +388,9 @@ client.on("interactionCreate", async (interaction) => {
         .setStyle(ButtonStyle.Danger)
     );
 
+    const taunt = pickFrom(CHALLENGE_TAUNTS, interaction.user.id, opponent.id);
     await interaction.editReply({
-      content: `🥋 <@${interaction.user.id}> has challenged <@${opponent.id}> to an MMA fight!\n<@${opponent.id}>, do you accept?`,
+      content: `${taunt}\n\n<@${opponent.id}>, do you accept?`,
       components: [row],
     });
 
@@ -348,7 +400,7 @@ client.on("interactionCreate", async (interaction) => {
       activeFights.delete(fightKey);
       try {
         await interaction.editReply({
-          content: `⏱️ <@${opponent.id}> didn't respond in time. Challenge expired.`,
+          content: pickFrom(TIMEOUT_LINES, interaction.user.id, opponent.id),
           components: [],
         });
       } catch { /* message may already be gone */ }
