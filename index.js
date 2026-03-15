@@ -35,8 +35,13 @@ const client = new Client({
   ],
 });
 
-// ── Active fight tracking ─────────────────────────────────────────────────────
-const activeFights = new Set();
+// ── Active fight tracking (per user, not per pair) ───────────────────────────
+// Tracks individual user IDs so no one can be in two fights at once
+const activeFighters = new Set();
+
+function addFighters(...ids)    { ids.forEach(id => activeFighters.add(id)); }
+function removeFighters(...ids) { ids.forEach(id => activeFighters.delete(id)); }
+function isFighting(...ids)     { return ids.some(id => activeFighters.has(id)); }
 
 // ── Config ────────────────────────────────────────────────────────────────────
 const MAX_HP          = 100;
@@ -293,8 +298,7 @@ client.on("interactionCreate", async (interaction) => {
         embeds: [],
         components: [],
       });
-      const fightKey = [challengerId, defenderId].sort().join("-");
-      activeFights.delete(fightKey);
+      removeFighters(challengerId, defenderId);
       return;
     }
 
@@ -314,8 +318,7 @@ client.on("interactionCreate", async (interaction) => {
         console.error("Fight error:", err);
         await interaction.channel.send("💥 Something went wrong mid-fight. The ref called it off.");
       } finally {
-        const fightKey = [challengerId, defenderId].sort().join("-");
-        activeFights.delete(fightKey);
+        removeFighters(challengerId, defenderId);
       }
     }
     return;
@@ -368,14 +371,16 @@ client.on("interactionCreate", async (interaction) => {
       });
     }
 
-    const fightKey = [interaction.user.id, opponent.id].sort().join("-");
-    if (activeFights.has(fightKey)) {
+    if (isFighting(interaction.user.id, opponent.id)) {
+      const who = activeFighters.has(interaction.user.id)
+        ? "You are"
+        : `<@${opponent.id}> is`;
       return interaction.editReply({
-        content: "⚠️ These two are already fighting! Wait for the current bout to finish.",
+        content: `⚠️ ${who} already in a fight. Wait for it to finish.`,
       });
     }
 
-    activeFights.add(fightKey);
+    addFighters(interaction.user.id, opponent.id);
 
     // Build accept/decline buttons
     const row = new ActionRowBuilder().addComponents(
@@ -397,8 +402,8 @@ client.on("interactionCreate", async (interaction) => {
 
     // Auto-expire the challenge after 60s
     setTimeout(async () => {
-      if (!activeFights.has(fightKey)) return; // already resolved
-      activeFights.delete(fightKey);
+      if (!isFighting(interaction.user.id, opponent.id)) return; // already resolved
+      removeFighters(interaction.user.id, opponent.id);
       try {
         await interaction.editReply({
           content: pickFrom(TIMEOUT_LINES, interaction.user.id, opponent.id),
