@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # 🥋 friendly-mma
 
 Part of the **Friendly** bot suite — mock 1v1 fights with real consequences.
@@ -88,3 +89,7 @@ Add or edit moves in the `MOVES` array — each needs a `name`, `damage: [min, m
 ---
 
 *Friendly bot suite — each bot owns its own `/friendly-*` command namespace.*
+=======
+# friendly-bots-mma
+Friendly suite of Discord Bots: Friendly MMA
+>>>>>>> 9957cfe5830aabe7c57286fbedb85c892fa713be

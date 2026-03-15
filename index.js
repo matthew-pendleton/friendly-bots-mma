@@ -1,3 +1,16 @@
+// ── friendly-mma ─────────────────────────────────────────────────────────────
+// Part of the Friendly bot suite.
+//
+// App directory description:
+//   Challenge any server member to a 1v1 MMA fight. Rounds play out
+//   blow-by-blow with random moves, HP bars, and trash talk. The loser
+//   gets timed out. Simple as that.
+//
+// Language:    English only
+// DM support:  No (server-only)
+// Status:      Playing: Friendly MMA
+// ─────────────────────────────────────────────────────────────────────────────
+
 const {
   Client,
   GatewayIntentBits,
@@ -58,6 +71,7 @@ const commands = [
   new SlashCommandBuilder()
     .setName("friendly-mma")
     .setDescription("Friendly MMA — mock 1v1 fights with real consequences 🥋")
+    .setDMPermission(false)
     .addSubcommand((sub) =>
       sub
         .setName("fight")
@@ -207,36 +221,36 @@ client.on("interactionCreate", async (interaction) => {
   if (sub === "fight") {
     const opponent = interaction.options.getMember("opponent");
 
+    // Defer immediately — gives us unlimited time to respond
+    await interaction.deferReply();
+
     if (!opponent) {
-      return interaction.reply({ content: "❌ Couldn't find that user in this server.", ephemeral: true });
+      return interaction.editReply({ content: "❌ Couldn't find that user in this server." });
     }
     if (opponent.id === interaction.user.id) {
-      return interaction.reply({ content: "❌ You can't fight yourself... or can you? (You can't.)", ephemeral: true });
+      return interaction.editReply({ content: "❌ You can't fight yourself... or can you? (You can't.)" });
     }
     if (opponent.user.bot) {
-      return interaction.reply({ content: "❌ Bots don't fight. We are pacifists. 🕊️", ephemeral: true });
+      return interaction.editReply({ content: "❌ Bots don't fight. We are pacifists. 🕊️" });
     }
 
     const botMember = interaction.guild.members.me;
     if (!botMember.permissions.has(PermissionsBitField.Flags.ModerateMembers)) {
-      return interaction.reply({
+      return interaction.editReply({
         content: "⚠️ I need the **Moderate Members** permission to time out the loser. Ask a server admin!",
-        ephemeral: true,
       });
     }
 
     const fightKey = [interaction.user.id, opponent.id].sort().join("-");
     if (activeFights.has(fightKey)) {
-      return interaction.reply({
+      return interaction.editReply({
         content: "⚠️ These two are already fighting! Wait for the current bout to finish.",
-        ephemeral: true,
       });
     }
 
     activeFights.add(fightKey);
 
-    // Acknowledge immediately so Discord doesn't time out the interaction
-    await interaction.reply({
+    await interaction.editReply({
       content: `🥋 **${interaction.member.displayName}** has challenged **${opponent.displayName}**! Fight starting...`,
     });
 
@@ -254,7 +268,7 @@ client.on("interactionCreate", async (interaction) => {
 // ── Ready ─────────────────────────────────────────────────────────────────────
 client.once("ready", async () => {
   console.log(`✅ ${client.user.tag} is online.`);
-  client.user.setActivity("in the cage 🥋", { type: ActivityType.Competing });
+  client.user.setActivity("Friendly MMA", { type: ActivityType.Playing });
   await registerCommands();
 });
 
