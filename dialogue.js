@@ -20,42 +20,42 @@ const MOVES = [
   { name: "Ground & Pound",     damage: [15, 25], flavor: "rains down ground & pound 🥊" },
 ];
 
-// Used when a round "misses" (no damage dealt).
+// Used when a round "misses" (no damage dealt). Styled like a normal line with `miss`.
 const MISS_FLAVOR = [
-  (atk) => `💨 **${atk}** — skill issue`,
-  (atk) => `💨 **${atk}** misses. Clean. Nothing. Air.`,
-  (atk) => `💨 **${atk}** throws that and expects it to land. It does not land.`,
-  (atk) => `💨 **${atk}** whiffs and the ref is genuinely embarrassed for them.`,
-  (atk) => `💨 **${atk}** just kicked the concept of fighting and made contact with nothing.`,
-  (atk) => `💨 **${atk}** swings. Miss. That's it. That's what happened.`,
-  (atk) => `💨 **${atk}** shoots for a takedown and arrives on the ground alone.`,
-  (atk) => `💨 **${atk}** was not ready to throw that and it showed.`,
-  (atk) => `💨 **${atk}** misses so wide someone in the crowd ducks.`,
-  (atk) => `💨 **${atk}** — no. Just no.`,
-  (atk) => `💨 **${atk}** attempts anime protagonist energy. Whiff.`,
-  (atk) => `💨 **${atk}** attempts violence but achieves interpretive dance by accident.`,
+  (atk) => `**${atk}** — skill issue · \`miss\``,
+  (atk) => `**${atk}** misses. Clean. Nothing. Air. · \`miss\``,
+  (atk) => `**${atk}** throws that and expects it to land. It does not land. · \`miss\``,
+  (atk) => `**${atk}** whiffs and the ref is genuinely embarrassed for them. · \`miss\``,
+  (atk) => `**${atk}** just kicked the concept of fighting and made contact with nothing. · \`miss\``,
+  (atk) => `**${atk}** swings. Miss. That's it. That's what happened. · \`miss\``,
+  (atk) => `**${atk}** shoots for a takedown and arrives on the ground alone. · \`miss\``,
+  (atk) => `**${atk}** was not ready to throw that and it showed. · \`miss\``,
+  (atk) => `**${atk}** misses so wide someone in the crowd ducks. · \`miss\``,
+  (atk) => `**${atk}** — no. Just no. · \`miss\``,
+  (atk) => `**${atk}** attempts anime protagonist energy. Whiff. · \`miss\``,
+  (atk) => `**${atk}** attempts violence but achieves interpretive dance by accident. · \`miss\``,
 ];
 
-// Used on high-damage rounds (knockdown flavor line).
+// Used on high-damage rounds (knockdown flavor line). Styled like a normal hit line.
 const KNOCKDOWN_FLAVOR = [
-  (atk, def, dmg) => `💥 **${atk}** hits **${def}** so hard they wake up on that cart in Skyrim — **-${dmg} HP**`,
-  (atk, def, dmg) => `💥 **${def}** wakes up mid-fight and immediately wishes they hadn't — **-${dmg} HP** from **${atk}**`,
-  (atk, def, dmg) => `💥 **${atk}** catches **${def}** so hard it makes NSFW sounds — **-${dmg} HP**`,
-  (atk, def, dmg) => `💥 **${atk}** just rearranged **${def}**'s entire afternoon — **-${dmg} HP**`,
-  (atk, def, dmg) => `💥 **${def}** takes **-${dmg} HP** and their body files a formal complaint with their brain`,
-  (atk, def, dmg) => `💥 **${atk}** lands that and **${def}**'s legs send a resignation letter — **-${dmg} HP**`,
-  (atk, def, dmg) => `💥 **${def}** is still standing. **${atk}** is fixing that — **-${dmg} HP**`,
-  (atk, def, dmg) => `💥 **${atk}** hits **${def}** with something that has no business being that clean — **-${dmg} HP**`,
+  (atk, def, dmg) => `**${atk}** hits **${def}** so hard they wake up on that cart in Skyrim — \`-${dmg} HP\``,
+  (atk, def, dmg) => `**${def}** wakes up mid-fight and immediately wishes they hadn't — \`-${dmg} HP\` from **${atk}**`,
+  (atk, def, dmg) => `**${atk}** catches **${def}** so hard it makes NSFW sounds — \`-${dmg} HP\``,
+  (atk, def, dmg) => `**${atk}** just rearranged **${def}**'s entire afternoon — \`-${dmg} HP\``,
+  (atk, def, dmg) => `**${def}** takes \`-${dmg} HP\` and their body files a formal complaint with their brain`,
+  (atk, def, dmg) => `**${atk}** lands that and **${def}**'s legs send a resignation letter — \`-${dmg} HP\``,
+  (atk, def, dmg) => `**${def}** is still standing. **${atk}** is fixing that — \`-${dmg} HP\``,
+  (atk, def, dmg) => `**${atk}** hits **${def}** with something that has no business being that clean — \`-${dmg} HP\``,
 ];
 
-// Used for very high-damage rounds (currently formatted like a "normal" hit line).
+// Used for very high-damage rounds, formatted like a normal hit line.
 const LUCKY_HIT_FLAVOR = [
-  (atk, def, dmg) => `🥊 → **${atk}** puts their foot up **${def}**'s bottom and it comes out their top · \`-${dmg} HP\``,
-  (atk, def, dmg) => `🥊 → **${atk}** closes their eyes, swings, and **${def}** takes the hit. No notes. · \`-${dmg} HP\``,
-  (atk, def, dmg) => `🥊 → **${atk}** had no right to land that. **${def}** loses HP anyway. · \`-${dmg} HP\``,
-  (atk, def, dmg) => `🥊 → **${def}** walks directly into it. Freely. Of their own will. · \`-${dmg} HP\``,
-  (atk, def, dmg) => `🥊 → That was dumb luck and everybody knows it. **${def}** loses HP regardless. · \`-${dmg} HP\``,
-  (atk, def, dmg) => `🥊 → **${atk}** sneezes mid-swing and it lands. **${def}** is devastated. We all are. · \`-${dmg} HP\``,
+  (atk, def, dmg) => `→ **${atk}** puts their foot up **${def}**'s bottom and it comes out their top · \`-${dmg} HP\``,
+  (atk, def, dmg) => `→ **${atk}** closes their eyes, swings, and **${def}** takes the hit. No notes. · \`-${dmg} HP\``,
+  (atk, def, dmg) => `→ **${atk}** had no right to land that. **${def}** loses HP anyway. · \`-${dmg} HP\``,
+  (atk, def, dmg) => `→ **${def}** walks directly into it. Freely. Of their own will. · \`-${dmg} HP\``,
+  (atk, def, dmg) => `→ That was dumb luck and everybody knows it. **${def}** loses HP regardless. · \`-${dmg} HP\``,
+  (atk, def, dmg) => `→ **${atk}** sneezes mid-swing and it lands. **${def}** is devastated. We all are. · \`-${dmg} HP\``,
 ];
 
 // Periodic commentary sprinkled into the fight log.
@@ -96,7 +96,7 @@ const META_FLAVOR = [
 
 // Used only if the winner selects "💀 Finish Them" after the KO.
 const FINISHERS = [
-  (w, l) => `💀 FINISHER — **${w}** drops **${l}** with a *picture-perfect* head kick. It's done.`,
+  (w, l) => `💀 FINISH IT — **${w}** drops **${l}** with a *picture-perfect* head kick. It's done.`,
   (w, l) => `💀 FINISHER — **${w}** sleeps **${l}** with a left hook that should require a permit.`,
   (w, l) => `💀 FINISHER — **${w}** hits the takedown, mounts, and the ref saves **${l}** from the rest of it.`,
   (w, l) => `💀 FINISHER — **${w}** lands a flying knee. **${l}** immediately starts loading the respawn screen.`,
