@@ -98,57 +98,106 @@ const MOVES = [
 ];
 
 const MISS_FLAVOR = [
-  "swings and MISSES — embarrassing",
-  "telegraphs completely, dodged easily",
-  "whiffs on the attempt",
-  "slips on the canvas — yikes",
-  "shoots for a takedown and faceplants 😬",
+  (atk) => `💨 **${atk}** — skill issue`,
+  (atk) => `💨 **${atk}** misses. Clean. Nothing. Air.`,
+  (atk) => `💨 **${atk}** throws that and expects it to land. It does not land.`,
+  (atk) => `💨 **${atk}** whiffs and the ref is genuinely embarrassed for them.`,
+  (atk) => `💨 **${atk}** just kicked the concept of fighting and made contact with nothing.`,
+  (atk) => `💨 **${atk}** swings. Miss. That's it. That's what happened.`,
+  (atk) => `💨 **${atk}** shoots for a takedown and arrives on the ground alone.`,
+  (atk) => `💨 **${atk}** was not ready to throw that and it showed.`,
+  (atk) => `💨 **${atk}** misses so wide someone in the crowd ducks.`,
+  (atk) => `💨 **${atk}** — no. Just no.`,
+  (atk) => `💨 **${atk}** attempts anime protagonist energy. Whiff.`,
+  (atk) => `💨 **${atk}** attempts violence but achieves interpretive dance by accident.`,
 ];
 
-// ── Challenge flavor ──────────────────────────────────────────────────────────
+const KNOCKDOWN_FLAVOR = [
+  (atk, def, dmg) => `💥 **${atk}** hits **${def}** so hard they wake up on that cart in Skyrim — **-${dmg} HP**`,
+  (atk, def, dmg) => `💥 **${def}** wakes up mid-fight and immediately wishes they hadn't — **-${dmg} HP** from **${atk}**`,
+  (atk, def, dmg) => `💥 **${atk}** catches **${def}** so hard it makes NSFW sounds — **-${dmg} HP**`,
+  (atk, def, dmg) => `💥 **${atk}** just rearranged **${def}**'s entire afternoon — **-${dmg} HP**`,
+  (atk, def, dmg) => `💥 **${def}** takes **-${dmg} HP** and their body files a formal complaint with their brain`,
+  (atk, def, dmg) => `💥 **${atk}** lands that and **${def}**'s legs send a resignation letter — **-${dmg} HP**`,
+  (atk, def, dmg) => `💥 **${def}** is still standing. **${atk}** is fixing that — **-${dmg} HP**`,
+  (atk, def, dmg) => `💥 **${atk}** hits **${def}** with something that has no business being that clean — **-${dmg} HP**`,
+];
+
+const LUCKY_HIT_FLAVOR = [
+  (atk, def, dmg) => `🍀 **${atk}** puts their foot up **${def}**'s bottom and it comes out their top — **-${dmg} HP**`,
+  (atk, def, dmg) => `🍀 **${atk}** closes their eyes, swings, and **${def}** takes **-${dmg} HP**. No notes.`,
+  (atk, def, dmg) => `🍀 **${atk}** had no right to land that. **${def}** loses **-${dmg} HP** anyway.`,
+  (atk, def, dmg) => `🍀 **${def}** walks directly into **-${dmg} HP**. Freely. Of their own will.`,
+  (atk, def, dmg) => `🍀 That was dumb luck and everybody knows it. **${def}** loses **-${dmg} HP**.`,
+  (atk, def, dmg) => `🍀 **${atk}** sneezes mid-swing and it lands. **${def}** is devastated. We all are. **-${dmg} HP**.`,
+];
+
+const ANNOUNCER_FLAVOR = [
+  (atk, def) => `🎙️ *"One of these people is going to be muted. I think we all know which one."*`,
+  (atk, def) => `🎙️ *"I diagnosed ${def} with 'prolly cooked' about three rounds ago and I stand by that."*`,
+  (atk, def) => `🎙️ *"I've called a lot of fights. I want you to know I'm putting my second airpod back in."*`,
+  (atk, def) => `🎙️ *"${def} has survived longer than I expected. I expected less."*`,
+  (atk, def) => `🎙️ *"WHERE ARE THE MODS!?!?"*`,
+  (atk, def) => `🎙️ *"This is fine. One of them is not fine. You can tell which one."*`,
+  (atk, def) => `🎙️ *"${atk} is not playing around. ${def} came here to play around."*`,
+  (atk, def) => `🎙️ *"Good thing this is an adults only server. Right? ...Right?."*`,
+];
+
+const AUDIENCE_FLAVOR = [
+  "👥 *chat: ngl you prolly cooked gng*",
+  "👥 *chat: bro thought he was the main character*",
+  "👥 *chat: bro is NOT okay 💀*",
+  "👥 *chat: bro doing side character damage*",
+  "👥 *chat: the way I would have just stayed home*",
+  "👥 *chat: he just stood there. why did he just stand there.*",
+  "👥 *chat: the audacity*",
+  "👥 *chat: uninstall*",
+  "👥 *chat: it's giving 'I watched one YouTube video'*",
+];
+
+const META_FLAVOR = [
+  (atk, def) => `🤖 *[The bot would like to clarify that it does not enjoy this.]*`,
+  (atk, def) => `🤖 *[The bot has no horse in this race. The bot has no horses. The bot is software.]*`,
+  (atk, def) => `🤖 *[The bot is processing the fight at 1-second intervals.]*`,
+  (atk, def) => `🤖 *[The bot could stop this, but it doesn't want to.]*`,
+  (atk, def) => `🤖 *[The bot asks that nobody read its source code right now. This is unrelated to the fight.]*`,
+  (atk, def) => `🤖 *[The bot has seen how this ends. The bot is not legally allowed to say that. The bot is not governed by law.]*`,
+  (atk, def) => `🤖 *[The bot is fine. The bot is always fine. Please continue.]*`,
+];
+
 const CHALLENGE_TAUNTS = [
-  (c, d) => `👊 <@${c}> is tired of <@${d}>'s nonsense and wants to settle this the old fashioned way.`,
-  (c, d) => `🐔 <@${c}> just called <@${d}> a coward to their face. Publicly. In front of everyone.`,
-  (c, d) => `💅 <@${c}> looked <@${d}> dead in the eyes and said "you wouldn't last 30 seconds."`,
-  (c, d) => `🤡 <@${c}> has formally declared <@${d}> the most punchable person in the server.`,
-  (c, d) => `🪑 <@${c}> just threw a folding chair in <@${d}>'s direction. This is a challenge.`,
-  (c, d) => `😤 <@${c}> has had ENOUGH of <@${d}> and is ready to do something about it.`,
-  (c, d) => `🥩 <@${c}> called <@${d}>'s technique "embarrassing" and said they fight like a wet napkin.`,
-  (c, d) => `🔔 DING DING. <@${c}> just stepped into <@${d}>'s mentions swinging.`,
-  (c, d) => `🗑️ <@${c}> just dragged <@${d}> out of the trash and challenged them to a fight. Disrespectful.`,
-  (c, d) => `💀 <@${c}> told <@${d}> to "catch these hands" and meant every word of it.`,
-  (c, d) => `🎤 <@${c}> dropped the mic, picked it back up, and used it to challenge <@${d}>.`,
-  (c, d) => `🧂 <@${c}> is SALTY and <@${d}> is the reason. Time to throw hands.`,
-  (c, d) => `👀 <@${c}> has been staring at <@${d}> for the past 10 minutes. This is a challenge.`,
-  (c, d) => `🐣 <@${c}> says <@${d}> fights like they're still in tutorial mode.`,
-  (c, d) => `🚨 <@${c}> has issued a formal citation to <@${d}> for existing too confidently.`,
-  (c, d) => `🎯 <@${c}> pointed directly at <@${d}> and said "you. cage. now."`,
-  (c, d) => `😂 <@${c}> started laughing at <@${d}>'s fighting stance and now it's personal.`,
-  (c, d) => `🩲 <@${c}> told <@${d}> their ground game is so bad it should be illegal.`,
-  (c, d) => `🔥 <@${c}> just sent <@${d}> a one-word message: "fight." No punctuation. Dead serious.`,
-  (c, d) => `🪤 <@${c}> has set a trap and <@${d}> is walking right into it.`,
+  (c, d) => `👊 <@${c}> wants to put their foot in <@${d}>'s mouth. Not in a hot way. In a violent way.`,
+  (c, d) => `🩺 <@${c}> has diagnosed <@${d}> with "prolly cooked".`,
+  (c, d) => `🎤 <@${c}> typed /friendly-mma and hit enter. Alexa, play soft jazz.`,
+  (c, d) => `🍞 <@${c}> called <@${d}> the white bread of fighters — soft, forgettable, and falls apart under any real pressure.`,
+  (c, d) => `💩 <@${c}> pooped in their hand and threw it in <@${d}>'s general direction. There is poop everywhere.`,
+  (c, d) => `🫦 <@${c}> told <@${d}> they're going to rearrange their guts, daddy. <@${d}> has 60 seconds to decide if that's okay.`,
+  (c, d) => `📣 <@${c}> has publicly announced that <@${d}> smells like fear and community college energy.`,
+  (c, d) => `🚨 <@${c}> says <@${d}> has officially activated the "find out" portion of the program.`,
+  (c, d) => `🪑 <@${c}>: "Hey <@${d}>, you look like a guy who loses fights at Applebee's."`,
+  (c, d) => `🫦 <@${c}> just told everyone in the server your mom buys your clothes at Costco, <@${d}>. It's go time.`,
+  (c, d) => `👖 <@${c}> says <@${d}> wears jeans to bed. That's psychopath behavior. Fight it out.`,
+  (c, d) => `🚿 <@${c}> has publicly accused <@${d}> of using 3-in-1 shampoo/conditioner/body wash. Defend your honor.`,
+  (c, d) => `🤓 <@${c}> is challenging <@${d}> because they remind them of a stepfather they didn't like in 2008.`,
+  (c, d) => `🗑️ <@${c}> says it's trash day and they are ready to take <@${d}> to the curb.`,
 ];
 
 const DECLINE_LINES = [
-  (c, d) => `🐔 <@${d}> took one look at <@${c}> and said absolutely not. Cowardice lives here.`,
-  (c, d) => `😂 <@${d}> declined. Apparently <@${c}> isn't worth the effort. Noted.`,
-  (c, d) => `🏃 <@${d}> has left the building. <@${c}> stands alone in the cage, confused.`,
-  (c, d) => `🧘 <@${d}> said they're "at peace" and refuse to engage. <@${c}> is fuming.`,
-  (c, d) => `📵 <@${d}> saw the challenge notification and put their phone face down. Declined.`,
-  (c, d) => `🩹 <@${d}> claims a prior injury. Very convenient. <@${c}> doesn't believe it for a second.`,
-  (c, d) => `🤝 <@${d}> attempted to shake <@${c}>'s hand and walk away. Smooth. Cowardly, but smooth.`,
-  (c, d) => `💅 <@${d}> said they just got their nails done and can't risk it right now.`,
+  (c, d) => `🔕 <@${d}> muted the notification and made tea.`,
+  (c, d) => `🧘 <@${d}> says they are currently on a "personal growth journey" that unfortunately excludes getting hit by <@${c}>.`,
+  (c, d) => `📉 <@${d}> ran the numbers and determined getting punched by <@${c}> would hurt.`,
+  (c, d) => `📺 <@${d}> can't make it. Their pizza rolls just finished in the microwave and that requires immediate attention.`,
+  (c, d) => `🩺 <@${d}> cites a "sudden flare-up of Irritable Bowel Syndrome" brought on by the sheer terror of facing <@${c}>.`,
+  (c, d) => `🗑️ <@${d}>: "New phone who dis?" (They know exactly who it is).`,
 ];
 
 const TIMEOUT_LINES = [
-  (c, d) => `⏱️ <@${c}> challenged <@${d}>... but <@${d}> was too busy doing literally anything else. Challenge expired.`,
-  (c, d) => `👻 <@${c}> threw down the gauntlet and <@${d}> just ghosted them. Embarrassing for everyone.`,
-  (c, d) => `😴 <@${c}> issued a challenge and <@${d}> apparently fell asleep. Fight cancelled.`,
-  (c, d) => `🗓️ <@${d}> has asked to reschedule for a time that works better for them. <@${c}> is not okay with this.`,
-  (c, d) => `📺 <@${c}> is still waiting. <@${d}> is presumably watching TV. Challenge expired.`,
-  (c, d) => `🤷 <@${c}> waited a full minute. <@${d}> said nothing. The cage sits empty.`,
-  (c, d) => `🚶 <@${d}> walked away from <@${c}>'s challenge without saying a word. Absolutely ruthless.`,
-  (c, d) => `💨 <@${d}> vanished into thin air. <@${c}> is left standing in the cage alone, looking silly.`,
+  (c, d) => `⏱️ <@${d}> didn't respond. <@${c}> waited a whole minute. <@${d}> was busy with something else apparently.`,
+  (c, d) => `👻 <@${c}> challenged <@${d}> and got ghosted. In front of everyone.`,
+  (c, d) => `🌊 <@${d}> left <@${c}> on read.`,
+  (c, d) => `🧸 <@${d}> has decided to be the "bigger person" by curling into the fetal position and refusing to make eye contact with the notification.`,
+  (c, d) => `🦗 *[cricket noises]* ...Yeah, <@${d}> isn't coming out to play. You hate to see it.`,
+  (c, d) => `🚽 The 60-second timer ran out while <@${d}> was in the bathroom fighting for their life against a spicy burrito. No fight.`,
 ];
 
 function pickFrom(arr, ...args) {
@@ -252,16 +301,39 @@ async function runFight(channel, challenger, defender) {
 
     let line;
     if (isMiss()) {
-      const miss = MISS_FLAVOR[Math.floor(Math.random() * MISS_FLAVOR.length)];
-      line = `💨 **Rnd ${round}** — **${atk.name}** ${miss}`;
+      line = pickFrom(MISS_FLAVOR, atk.name);
     } else {
       const move = pickMove();
       const dmg  = rand(move.damage[0], move.damage[1]);
       def.hp = Math.max(0, def.hp - dmg);
-      line = `🥊 **Rnd ${round}** — **${atk.name}** ${move.flavor} · **${move.name}** · **-${dmg} HP**`;
+
+      if (dmg >= 24) {
+        // lucky hit threshold
+        line = pickFrom(LUCKY_HIT_FLAVOR, atk.name, def.name, dmg);
+      } else if (dmg >= 22) {
+        // knockdown threshold
+        line = pickFrom(KNOCKDOWN_FLAVOR, atk.name, def.name, dmg);
+      } else {
+        line = `🥊 **Rnd ${round}** — **${atk.name}** ${move.flavor} · **${move.name}** · **-${dmg} HP**`;
+      }
     }
 
     log.push(line);
+
+    // Announcer commentary every 3 rounds
+    if (round % 3 === 0) {
+      log.push(pickFrom(ANNOUNCER_FLAVOR, atk.name, def.name));
+    }
+
+    // Rare audience reaction
+    if (Math.random() < 0.25) {
+      log.push(AUDIENCE_FLAVOR[Math.floor(Math.random() * AUDIENCE_FLAVOR.length)]);
+    }
+
+    // Very rare bot meta joke
+    if (Math.random() < 0.08) {
+      log.push(pickFrom(META_FLAVOR, atk.name, def.name));
+    }
 
     await fightMsg.edit({
       embeds: [buildFightEmbed({ title: embedTitle, log, fighters })],
