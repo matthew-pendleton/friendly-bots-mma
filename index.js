@@ -51,6 +51,10 @@ const TIMEOUT_MINUTES      = 5;
 const ROUND_DELAY_MS       = 1000;
 const CHALLENGE_TIMEOUT_MS = 60000;
 const STATS_FILE           = path.join(__dirname, "stats.json");
+// Fight flavor tuning (lower = less chatty)
+const ANNOUNCER_EVERY_ROUNDS = 6;    // was 4
+const AUDIENCE_CHANCE        = 0.10; // was 0.20
+const META_CHANCE            = 0.02; // was 0.06
 
 // ── Stats persistence ─────────────────────────────────────────────────────────
 function loadStats() {
@@ -95,7 +99,7 @@ const MOVES = [
   { name: "Ground & Pound",     damage: [15, 25], flavor: "rains down ground & pound 🥊" },
 ];
 
-const MISS_FLAVOR = [
+const MISS_FLAVOR = [ // random crit fail rolls
   (atk) => `💨 **${atk}** — skill issue`,
   (atk) => `💨 **${atk}** misses. Clean. Nothing. Air.`,
   (atk) => `💨 **${atk}** throws that and expects it to land. It does not land.`,
@@ -110,7 +114,7 @@ const MISS_FLAVOR = [
   (atk) => `💨 **${atk}** attempts violence but achieves interpretive dance by accident.`,
 ];
 
-const KNOCKDOWN_FLAVOR = [
+const KNOCKDOWN_FLAVOR = [ // random crit rolls
   (atk, def, dmg) => `💥 **${atk}** hits **${def}** so hard they wake up on that cart in Skyrim — **-${dmg} HP**`,
   (atk, def, dmg) => `💥 **${def}** wakes up mid-fight and immediately wishes they hadn't — **-${dmg} HP** from **${atk}**`,
   (atk, def, dmg) => `💥 **${atk}** catches **${def}** so hard it makes NSFW sounds — **-${dmg} HP**`,
@@ -121,7 +125,7 @@ const KNOCKDOWN_FLAVOR = [
   (atk, def, dmg) => `💥 **${atk}** hits **${def}** with something that has no business being that clean — **-${dmg} HP**`,
 ];
 
-const LUCKY_HIT_FLAVOR = [
+const LUCKY_HIT_FLAVOR = [ 
   (atk, def, dmg) => `🥊 → **${atk}** puts their foot up **${def}**'s bottom and it comes out their top · \`-${dmg} HP\``,
   (atk, def, dmg) => `🥊 → **${atk}** closes their eyes, swings, and **${def}** takes the hit. No notes. · \`-${dmg} HP\``,
   (atk, def, dmg) => `🥊 → **${atk}** had no right to land that. **${def}** loses HP anyway. · \`-${dmg} HP\``,
@@ -130,7 +134,7 @@ const LUCKY_HIT_FLAVOR = [
   (atk, def, dmg) => `🥊 → **${atk}** sneezes mid-swing and it lands. **${def}** is devastated. We all are. · \`-${dmg} HP\``,
 ];
 
-const ANNOUNCER_FLAVOR = [
+const ANNOUNCER_FLAVOR = [ 
   (atk, def) => `🎙️ *"One of these people is going to be muted. I think we all know which one."*`,
   (atk, def) => `🎙️ *"I diagnosed ${def} with 'prolly cooked' about three rounds ago and I stand by that."*`,
   (atk, def) => `🎙️ *"I've called a lot of fights. I want you to know I'm putting my second airpod back in."*`,
@@ -141,7 +145,7 @@ const ANNOUNCER_FLAVOR = [
   (atk, def) => `🎙️ *"Good thing this is an adults only server. Right? ...Right?."*`,
 ];
 
-const AUDIENCE_FLAVOR = [
+const AUDIENCE_FLAVOR = [ 
   "👥 *chat: ngl you prolly cooked gng*",
   "👥 *chat: bro thought he was the main character*",
   "👥 *chat: bro is NOT okay 💀*",
@@ -321,29 +325,29 @@ async function runFight(channel, challenger, defender) {
 
       if (dmg >= 24) {
         // Lucky hit — same format as normal, no clover
-        line = `🥊 → **${atk.name}** ${move.flavor} · **${move.name}** · \`-${dmg} HP\``;
+        line = `→ **${atk.name}** ${move.flavor} · **${move.name}** · \`-${dmg} HP\``;
       } else if (dmg >= 22) {
         // Knockdown — special flavor text, no blockquote
         line = pickFrom(KNOCKDOWN_FLAVOR, atk.name, def.name, dmg);
       } else {
-        line = `🥊 → **${atk.name}** ${move.flavor} · **${move.name}** · \`-${dmg} HP\``;
+        line = `→ **${atk.name}** ${move.flavor} · **${move.name}** · \`-${dmg} HP\``;
       }
     }
 
     log.push(line);
 
-    // Announcer commentary every 4 rounds
-    if (round % 4 === 0) {
+    // Announcer commentary periodically
+    if (ANNOUNCER_EVERY_ROUNDS > 0 && round % ANNOUNCER_EVERY_ROUNDS === 0) {
       log.push(pickFrom(ANNOUNCER_FLAVOR, atk.name, def.name));
     }
 
-    // Audience reaction — 20% chance
-    if (Math.random() < 0.20) {
+    // Audience reaction
+    if (Math.random() < AUDIENCE_CHANCE) {
       log.push(AUDIENCE_FLAVOR[Math.floor(Math.random() * AUDIENCE_FLAVOR.length)]);
     }
 
-    // Bot meta joke — 6% chance
-    if (Math.random() < 0.06) {
+    // Bot meta joke
+    if (Math.random() < META_CHANCE) {
       log.push(pickFrom(META_FLAVOR, atk.name, def.name));
     }
 
@@ -489,11 +493,11 @@ client.on("interactionCreate", async (interaction) => {
 
     // Build monospace-aligned stat rows
     const statRows = [
-      ["🏆", "Wins",         String(userStats.wins)],
-      ["💀", "Losses",       String(userStats.losses)],
-      ["📊", "W/L Ratio",    ratio],
-      ["🥊", "Total Fights", String(total)],
-      ["📈", "Win Rate",     `${winPct}%`],
+      ["🏆", "Wins",            String(userStats.wins)],
+      ["💀", "Losses",          String(userStats.losses)],
+      ["📊", "W/L Ratio",       ratio],
+      ["🥊", "Total Fights",    String(total)],
+      ["📈", "Win Rate",        `${winPct}%`],
     ];
     const labelW = Math.max(...statRows.map(r => r[1].length));
     const valueW = Math.max(...statRows.map(r => r[2].length));
