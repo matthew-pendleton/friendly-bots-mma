@@ -257,16 +257,27 @@ function hpBar(name, hp, nameWidth, max = MAX_HP) {
   return `❤️ \`${padded}\` ${bar} \`${hp}\``;
 }
 
+const DESCRIPTION_LIMIT = 3800; // safe buffer under Discord's 4096 cap
+
 function buildFightEmbed({ title, log, fighters, color = 0xcc0000 }) {
-  const nameWidth = Math.max(fighters[0].name.length, fighters[1].name.length);
+  const nameWidth  = Math.max(fighters[0].name.length, fighters[1].name.length);
+  const hpLines    = "\n\u200B\n" +
+    hpBar(fighters[0].name, fighters[0].hp, nameWidth) + "\n" +
+    hpBar(fighters[1].name, fighters[1].hp, nameWidth);
+
+  // Trim oldest log lines if we're approaching the embed description limit
+  let trimmedLog = [...log];
+  while (trimmedLog.length > 1) {
+    const desc = trimmedLog.map(l => `> ${l}`).join("\n") + hpLines;
+    if (desc.length <= DESCRIPTION_LIMIT) break;
+    trimmedLog.shift();
+  }
+
   return new EmbedBuilder()
     .setColor(color)
     .setTitle(title)
     .setDescription(
-      log.map(l => `> ${l}`).join("\n") +
-      "\n\u200B\n" +
-      hpBar(fighters[0].name, fighters[0].hp, nameWidth) + "\n" +
-      hpBar(fighters[1].name, fighters[1].hp, nameWidth)
+      trimmedLog.map(l => `> ${l}`).join("\n") + hpLines
     );
 }
 
