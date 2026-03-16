@@ -496,10 +496,11 @@ client.on("interactionCreate", async (interaction) => {
   // ── /friendly-mma leaderboard ─────────────────────────────────────────────
   if (sub === "leaderboard") {
     const stats = loadStats();
-    const entries = Object.values(stats)
-      .filter(u => u.wins + u.losses > 0)
-      .sort((a, b) => {
-        // Sort by wins first, then by W/L ratio
+
+    // Build sorted top-10 with IDs preserved
+    const top10 = Object.entries(stats)
+      .filter(([, u]) => u.wins + u.losses > 0)
+      .sort(([, a], [, b]) => {
         if (b.wins !== a.wins) return b.wins - a.wins;
         const ratioA = a.losses === 0 ? a.wins : a.wins / a.losses;
         const ratioB = b.losses === 0 ? b.wins : b.wins / b.losses;
@@ -507,33 +508,20 @@ client.on("interactionCreate", async (interaction) => {
       })
       .slice(0, 10);
 
-    if (entries.length === 0) {
+    if (top10.length === 0) {
       return interaction.reply({ content: "📭 No fights recorded yet.", ephemeral: true });
     }
 
-    // Fetch display names from Discord for all entries
-    const entryIds = entries.map((u, i) => ({ id: Object.keys(loadStats()).find(k => {
-      const s = loadStats(); return s[k] === u;
-    }), u, i }));
-
-    // Re-derive IDs from the stats object directly
-    const allStats = loadStats();
-    const entryWithIds = entries.map((u, i) => {
-      const id = Object.keys(allStats).find(k => allStats[k] === u);
-      return { id, u, i };
-    });
-
+    // Fetch all members in parallel, fall back to mention if not in server
     const memberFetches = await Promise.all(
-      entryWithIds.map(({ id }) =>
-        interaction.guild.members.fetch(id).catch(() => null)
-      )
+      top10.map(([id]) => interaction.guild.members.fetch(id).catch(() => null))
     );
 
-    const medals  = ["🥇", "🥈", "🥉"];
-    const ranked  = entryWithIds.map(({ id, u, i }, idx) => {
+    const medals = ["🥇", "🥈", "🥉"];
+    const ranked = top10.map(([id, u], idx) => {
       const ratio = u.losses === 0 ? u.wins.toFixed(2) : (u.wins / u.losses).toFixed(2);
-      const name  = memberFetches[idx]?.displayName ?? `<@${id}>`;
-      return { medal: medals[i] ?? `${i + 1}. `, name, wins: u.wins, losses: u.losses, ratio };
+      const name  = memberFetches[idx]?.displayName ?? `Unknown`;
+      return { medal: medals[idx] ?? `${idx + 1}. `, name, wins: u.wins, losses: u.losses, ratio };
     });
 
     // Column widths
