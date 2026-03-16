@@ -64,14 +64,12 @@ function saveStats(stats) {
   fs.writeFileSync(STATS_FILE, JSON.stringify(stats, null, 2));
 }
 
-function recordResult(winnerId, winnerName, loserId, loserName) {
+function recordResult(winnerId, loserId) {
   const stats = loadStats();
 
-  if (!stats[winnerId]) stats[winnerId] = { name: winnerName, wins: 0, losses: 0 };
-  if (!stats[loserId])  stats[loserId]  = { name: loserName,  wins: 0, losses: 0 };
+  if (!stats[winnerId]) stats[winnerId] = { wins: 0, losses: 0 };
+  if (!stats[loserId])  stats[loserId]  = { wins: 0, losses: 0 };
 
-  stats[winnerId].name   = winnerName; // keep name fresh
-  stats[loserId].name    = loserName;
   stats[winnerId].wins  += 1;
   stats[loserId].losses += 1;
 
@@ -351,7 +349,7 @@ async function runFight(channel, challenger, defender) {
   const winner = fighters[0].hp <= 0 ? fighters[1] : fighters[0];
 
   // Record stats
-  recordResult(winner.member.id, winner.name, loser.member.id, loser.name);
+  recordResult(winner.member.id, loser.member.id);
 
   // Final KO embed
   const nameWidth = Math.max(fighters[0].name.length, fighters[1].name.length);
@@ -461,6 +459,10 @@ client.on("interactionCreate", async (interaction) => {
       });
     }
 
+    // Fetch current display name from Discord
+    const member = await interaction.guild.members.fetch(target.id).catch(() => null);
+    const displayName = member?.displayName ?? target.username;
+
     const total  = userStats.wins + userStats.losses;
     const ratio  = userStats.losses === 0
       ? userStats.wins.toFixed(2)
@@ -485,7 +487,7 @@ client.on("interactionCreate", async (interaction) => {
       embeds: [
         new EmbedBuilder()
           .setColor(0xcc0000)
-          .setTitle(`🥋 ${userStats.name} — Fight Stats`)
+          .setTitle(`🥋 ${displayName} — Fight Stats`)
           .setDescription(statLines),
       ],
     });
@@ -509,10 +511,29 @@ client.on("interactionCreate", async (interaction) => {
       return interaction.reply({ content: "📭 No fights recorded yet.", ephemeral: true });
     }
 
+    // Fetch display names from Discord for all entries
+    const entryIds = entries.map((u, i) => ({ id: Object.keys(loadStats()).find(k => {
+      const s = loadStats(); return s[k] === u;
+    }), u, i }));
+
+    // Re-derive IDs from the stats object directly
+    const allStats = loadStats();
+    const entryWithIds = entries.map((u, i) => {
+      const id = Object.keys(allStats).find(k => allStats[k] === u);
+      return { id, u, i };
+    });
+
+    const memberFetches = await Promise.all(
+      entryWithIds.map(({ id }) =>
+        interaction.guild.members.fetch(id).catch(() => null)
+      )
+    );
+
     const medals  = ["🥇", "🥈", "🥉"];
-    const ranked   = entries.map((u, i) => {
+    const ranked  = entryWithIds.map(({ id, u, i }, idx) => {
       const ratio = u.losses === 0 ? u.wins.toFixed(2) : (u.wins / u.losses).toFixed(2);
-      return { medal: medals[i] ?? `${i + 1}. `, name: u.name, wins: u.wins, losses: u.losses, ratio };
+      const name  = memberFetches[idx]?.displayName ?? `<@${id}>`;
+      return { medal: medals[i] ?? `${i + 1}. `, name, wins: u.wins, losses: u.losses, ratio };
     });
 
     // Column widths
