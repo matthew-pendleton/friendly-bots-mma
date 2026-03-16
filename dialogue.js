@@ -23,15 +23,8 @@ const MOVES = [
 // Used when a round "misses" (no damage dealt). Styled like a normal line with `miss`.
 const MISS_FLAVOR = [
   (atk) => `**${atk}** — skill issue · \`miss\``,
-  (atk) => `**${atk}** misses. Clean. Nothing. Air. · \`miss\``,
-  (atk) => `**${atk}** throws that and expects it to land. It does not land. · \`miss\``,
-  (atk) => `**${atk}** whiffs and the ref is genuinely embarrassed for them. · \`miss\``,
-  (atk) => `**${atk}** just kicked the concept of fighting and made contact with nothing. · \`miss\``,
-  (atk) => `**${atk}** swings. Miss. That's it. That's what happened. · \`miss\``,
-  (atk) => `**${atk}** shoots for a takedown and arrives on the ground alone. · \`miss\``,
-  (atk) => `**${atk}** was not ready to throw that and it showed. · \`miss\``,
-  (atk) => `**${atk}** misses so wide someone in the crowd ducks. · \`miss\``,
-  (atk) => `**${atk}** — no. Just no. · \`miss\``,
+  (atk) => `**${atk}** doesn't have enough PP for this move! *classic, amirite??*. · \`miss\``,
+  (atk) => `**${atk}** swings. It does not land. · \`miss\``,
   (atk) => `**${atk}** attempts anime protagonist energy. Whiff. · \`miss\``,
   (atk) => `**${atk}** attempts violence but achieves interpretive dance by accident. · \`miss\``,
 ];
@@ -96,21 +89,29 @@ const META_FLAVOR = [
 
 // Used only if the winner selects "💀 Finish Them" after the KO.
 const FINISHERS = [
-  (w, l) => `💀 FINISH IT — **${w}** drops **${l}** with a *picture-perfect* head kick. It's done.`,
-  (w, l) => `💀 FINISHER — **${w}** sleeps **${l}** with a left hook that should require a permit.`,
-  (w, l) => `💀 FINISHER — **${w}** hits the takedown, mounts, and the ref saves **${l}** from the rest of it.`,
-  (w, l) => `💀 FINISHER — **${w}** lands a flying knee. **${l}** immediately starts loading the respawn screen.`,
-  (w, l) => `💀 FINISHER — **${w}** locks in a choke. **${l}** taps like they're trying to start a fire.`,
-  (w, l) => `💀 FINISHER — **${w}** piles on ground & pound until the ref physically says "enough".`,
-  (w, l) => `💀 FINISHER — **${w}** feints, then detonates an uppercut. **${l}** is spiritually absent.`,
-  (w, l) => `💀 FINISHER — **${w}** lands an elbow in the clinch. **${l}** rethinks every decision since 2008.`,
+  (w, l) => `💀 **FINISHER** — **${w}** uses **THUNDERBOLT**. *It’s super effective!* Oh fuck, they’re dead.`,
+  (w, l) => `💀 **FINISHER** — **${w}** hits **${l}** with the 'Five Point Palm Exploding Heart Technique.' **${l}** takes three steps and their heart... well, explodes.`,
+  (w, l) => `💀 **FINISHER** — **${w}** pulls out a strange black notebook, and starts writing furiously. **${l}** immediately drops, clutching their chest. *Cardiac arrest.* Who knew?`,
+  (w, l) => `💀 **FINISHER** — *“My God! **${w}** has a bright red tortoise shell! Don't do it! For the love of everything, don't do it!”* **BOOM.** Direct impact. The referee is waving it off. **${l}** is... **${l}** is just *dust*. 🐢💥`,
+  (w, l) => `💀 **BRUTALITY** — *“What is this?! **${w}** just rolled a massive steel oxygen tank into the cage! He’s trying to jam it into **${l}**’s mouth! NO! NO! Don’t tell me... **${w}** has a revolver! He shoots the tank! **KABOOM!** It is a slaughterhouse in there! **${l}** is scattered in pieces across the first three rows!”* 💥🦈`,
+  (w, l) => `💀 **FINISHER** — *“Here comes **${w}**! **${w}** has the steel ch—wait. That’s not a chair. That's a... little black notebook? **${w}** just wrote... **${l}**'s name in it? ...Wait, **${l}** just dropped. Cardiac arrest! He’s clutching his chest! **${l}** is fading! A *HEART ATTACK*?! THIS IS NOT THE WAY I WANTED THIS MAIN EVENT TO END!”* 📓`,
+  (w, l) => `💀 **BRUTALITY** — *“Look at **${w}**! While **${l}** was recovering, **${w}** just... *piled up* blocks of T-N-T in the corner? He's running wires! He has a lever! ...*“FOR THE LOVE OF JERRY LAWLER, NO!”* 💥*💥*💥 **${l}** has been atomized into blocky particles! **${w}** is standing there mining the referee! What am I witnessing?!”*`,
+  (w, l) => `💀 **FINISHER** — *“**${w}** is powering up! He's yelling **some weeby nonsense**!! Good Lord, the entire arena is illuminating! **${w}** unleashes a beam of pure energy! **${l}** isn't just knocked out, **${l}** has been turned into a fine, glowing dust! He’s gone! There’s nothing left!”* 💥🌌`,
+  (w, l) => `💀 **FINISHER** — *“**${w}** has found... a fire flower? In the middle of an MMA fight?! **${w}** eats it... and **${w}**'s mouth is glowing! No! No! Don’t you do it! He spits it! **A LIVING FIREBALL!** **${l}** has been engulfed! **${l}** is screaming! The referee is running away! **${l}** is a baked potato! This is insanity!”* 🔥🍄`,
+  (w, l) => `💀 **FATALITY** — *“Here we go! **${w}** has **${l}** on the ropes... literally, the cage rope! **${w}** is wrapping it around **${l}**'s neck... **${w}** spins **${l}**... **THE BODY HAS SEPARATED!** **${w}** is holding **${l}**'s spinal cord like a trophy! *BY GOD, WHAT HAS HAPPENED TO OUR SPORT?!*”* 🩸🦴`,
+  (w, l) => `💀 **BRUTALITY** — *“**${w}**... has an ancient gold box? It’s *the Ark of the Covenant*! He’s opening it! NO! NO! Don't look at it! *Don’t look at it, **${l}**!* ...Oh, good sweet heavens! **${l}** looked! **${l}**’s face is melting! The flesh! The eyeballs! **IT’S ALL RUNNING LIKE HOT WAX!** **${l}** has disintegrated into a puddle of goo! *WHY IS THIS OCCURRING IN OUR MAIN EVENT?!*”* 🕋🔥`,
+  (w, l) => `💀 **BRUTALITY** — *“What in the actual fuck?! The arena gates are crashing down! That’s... that’s a full-grown Tyrannosaurus Rex! Where did **${w}** even— *GOOD GOD!* The beast has **${l}** by the midsection! The CRUNCH! That poor bastard has been bisected and swallowed in one bite!”* 🦖💥`,
+  (w, l) => `💀 **BRUTALITY** — *“My God! **${w}** has snapped! **${w}** has grabbed a fire axe and is chopping down the cage door! For the love of Jerry Lawler, he’s through! NO! **THE AXE!** He just split **${l}**’s head vertically down the middle! This isn't wrestling! This is a horror movie! Someone stop this! **WHERE ARE THE MODS?!**”* 🪓🚪`,
+  (w, l) => `💀 **FATALITY** — *“What is that glowing stick? Is that... is that an actual lightsaber?! For the love of everything, don't! **${w}** swings... *'By the rivers of Babylon!'* **${l}** has been perfectly cut in half! Vertically separated! The anatomy... **THE ANATOMY IS WRONG!** **${l}**’s insides are cartoon dust! What am I witnessing?!”* 🗡️🌌`,
+  (w, l) => `💀 **FINISHER** — *“**${l}** lands a powerful roundhouse kick... but **${w}** just bent backward in slow motion?! What am I seeing? **${w}** dodged! They whisper 'My name... is **${w}**,'... **AND PUNCHES THEIR FIST DIRECTLY THROUGH **${l}**'S HEART!** **${w}**’s hand is on the other side! This is murder!”* 🖥️❤️`,
+  (w, l) => `💀 **FINISHER** — *“My God! **${w}** has reached under the ring... that’s not a chair! That's an industrial staple gun! NO! Don’t you do it! He’s grabbed **${l}**’s nose! **CHUNQUE.** *Oh, the humanity!* He just stapled **${l}**’s nose directly to his own chest! **${l}** is screaming! **${w}** just got a three-count and is stapling a 'Property of **${w}**' sign to the canvas! It’s a tragedy!”* 🔫👃`,
 ];
 
 // Used when a challenge is issued (shown publicly with accept/decline buttons).
 const CHALLENGE_TAUNTS = [
   (c, d) => `👊 <@${c}> wants to put their foot in <@${d}>'s mouth. Not in a hot way. In a violent way.`,
   (c, d) => `🩺 <@${c}> has diagnosed <@${d}> with "prolly cooked".`,
-  (c, d) => `🎤 <@${c}> typed /friendly-mma and hit enter. Alexa, play soft jazz.`,
+  (c, d) => `🎤 <@${c}> typed /unfriendly-mma and hit enter. Alexa, play soft jazz.`,
   (c, d) => `🍞 <@${c}> called <@${d}> the white bread of fighters — soft, forgettable, and falls apart under any real pressure.`,
   (c, d) => `💩 <@${c}> pooped in their hand and threw it in <@${d}>'s general direction. There is poop everywhere.`,
   (c, d) => `🫦 <@${c}> told <@${d}> they're going to rearrange their guts, daddy. <@${d}> has 60 seconds to decide if that's okay.`,
