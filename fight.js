@@ -79,6 +79,7 @@ function createFightEngine(config) {
   const {
     MAX_HP,
     TIMEOUT_MINUTES,
+    TIMEOUT_ENABLED = true,
     ROUND_DELAY_MS,
     ANNOUNCER_EVERY_ROUNDS,
     AUDIENCE_CHANCE,
@@ -178,13 +179,15 @@ function createFightEngine(config) {
     await fightMsg.edit({ embeds: [finalEmbed] });
 
     const canModerate = channel.guild?.members?.me?.permissions?.has(PermissionsBitField.Flags.ModerateMembers);
+    // Only disable "Finish Them" when timeout is on and we can't actually timeout
+    const disableFinishThem = TIMEOUT_ENABLED && !canModerate;
 
     const decisionRow = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setCustomId(`mma_finish:${winner.member.id}:${loser.member.id}`)
         .setLabel("💀 Finish Them")
         .setStyle(ButtonStyle.Danger)
-        .setDisabled(!canModerate),
+        .setDisabled(disableFinishThem),
       new ButtonBuilder()
         .setCustomId(`mma_shake:${winner.member.id}:${loser.member.id}`)
         .setLabel("Shake hands")
@@ -231,29 +234,33 @@ function createFightEngine(config) {
       });
 
       const finisherLine = pickFrom(FINISHERS, winner.name, loser.name);
+      const consequenceText = TIMEOUT_ENABLED
+        ? `**Consequence**: <@${loser.member.id}> gets timed out for **${TIMEOUT_MINUTES} minutes**.`
+        : `**Consequence**: *(timeout disabled — no one was muted)*`;
       const finisherEmbed = new EmbedBuilder()
         .setColor(0xcc0000)
         .setTitle("💀 FINISH THEM")
-        .setDescription(
-          `${finisherLine}\n\n` +
-          `**Consequence**: <@${loser.member.id}> gets timed out for **${TIMEOUT_MINUTES} minutes**.`
-        );
+        .setDescription(`${finisherLine}\n\n${consequenceText}`);
 
-      try {
-        await loser.member.timeout(TIMEOUT_MINUTES * 60 * 1000, `Lost a Friendly MMA fight against ${winner.name}`);
+      if (TIMEOUT_ENABLED) {
+        try {
+          await loser.member.timeout(TIMEOUT_MINUTES * 60 * 1000, `Lost a Friendly MMA fight against ${winner.name}`);
+          await channel.send({ embeds: [finisherEmbed] });
+        } catch {
+          await channel.send({
+            embeds: [
+              new EmbedBuilder()
+                .setColor(0x808080)
+                .setTitle("⚠️ Couldn't finish them")
+                .setDescription(
+                  `${finisherLine}\n\n` +
+                  `Tried to time out <@${loser.member.id}>, but they may be a mod or above my role.`
+                ),
+            ],
+          });
+        }
+      } else {
         await channel.send({ embeds: [finisherEmbed] });
-      } catch {
-        await channel.send({
-          embeds: [
-            new EmbedBuilder()
-              .setColor(0x808080)
-              .setTitle("⚠️ Couldn't finish them")
-              .setDescription(
-                `${finisherLine}\n\n` +
-                `Tried to time out <@${loser.member.id}>, but they may be a mod or above my role.`
-              ),
-          ],
-        });
       }
     } catch {
       await resolveShakeHands("no response in 10s");

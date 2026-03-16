@@ -54,6 +54,7 @@ function isFighting(...ids)     { return ids.some(id => activeFighters.has(id));
 // ── Config ────────────────────────────────────────────────────────────────────
 const MAX_HP               = 100;
 const TIMEOUT_MINUTES      = 5;
+const TIMEOUT_ENABLED      = false; // set true to actually timeout the loser when "Finish Them" is used
 const ROUND_DELAY_MS       = 1000;
 const CHALLENGE_TIMEOUT_MS = 60000;
 // Fight flavor tuning (lower = less chatty)
@@ -65,6 +66,7 @@ const POST_FIGHT_DECISION_MS = 10000;
 const { runFight } = createFightEngine({
   MAX_HP,
   TIMEOUT_MINUTES,
+  TIMEOUT_ENABLED,
   ROUND_DELAY_MS,
   ANNOUNCER_EVERY_ROUNDS,
   AUDIENCE_CHANCE,
@@ -180,7 +182,9 @@ client.on("interactionCreate", async (interaction) => {
         `**How it works**\n` +
         `> Both fighters start at **${MAX_HP} HP**. Rounds alternate attacks until someone hits 0.\n` +
         `> Moves deal random damage. There's a 15% miss chance per round.\n` +
-        `> The loser is timed out for **${TIMEOUT_MINUTES} minutes** automatically.\n\n` +
+        (TIMEOUT_ENABLED
+          ? `> If the winner chooses **Finish Them**, the loser is timed out for **${TIMEOUT_MINUTES} minutes**.\n\n`
+          : `> **Timeout is currently disabled** (trial mode — no one gets muted).\n\n`) +
         `*Part of the **Friendly** bot suite.*`,
       ephemeral: true,
     });
@@ -310,7 +314,7 @@ client.on("interactionCreate", async (interaction) => {
     }
 
     const botMember = interaction.guild.members.me;
-    if (!botMember.permissions.has(PermissionsBitField.Flags.ModerateMembers)) {
+    if (TIMEOUT_ENABLED && !botMember.permissions.has(PermissionsBitField.Flags.ModerateMembers)) {
       return interaction.editReply({
         content: "⚠️ I need the **Moderate Members** permission to time out the loser. Ask a server admin!",
       });
