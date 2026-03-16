@@ -122,12 +122,12 @@ const KNOCKDOWN_FLAVOR = [
 ];
 
 const LUCKY_HIT_FLAVOR = [
-  (atk, def, dmg) => `🍀 **${atk}** puts their foot up **${def}**'s bottom and it comes out their top — **-${dmg} HP**`,
-  (atk, def, dmg) => `🍀 **${atk}** closes their eyes, swings, and **${def}** takes **-${dmg} HP**. No notes.`,
-  (atk, def, dmg) => `🍀 **${atk}** had no right to land that. **${def}** loses **-${dmg} HP** anyway.`,
-  (atk, def, dmg) => `🍀 **${def}** walks directly into **-${dmg} HP**. Freely. Of their own will.`,
-  (atk, def, dmg) => `🍀 That was dumb luck and everybody knows it. **${def}** loses **-${dmg} HP**.`,
-  (atk, def, dmg) => `🍀 **${atk}** sneezes mid-swing and it lands. **${def}** is devastated. We all are. **-${dmg} HP**.`,
+  (atk, def, dmg) => `🥊 → **${atk}** puts their foot up **${def}**'s bottom and it comes out their top · \`-${dmg} HP\``,
+  (atk, def, dmg) => `🥊 → **${atk}** closes their eyes, swings, and **${def}** takes the hit. No notes. · \`-${dmg} HP\``,
+  (atk, def, dmg) => `🥊 → **${atk}** had no right to land that. **${def}** loses HP anyway. · \`-${dmg} HP\``,
+  (atk, def, dmg) => `🥊 → **${def}** walks directly into it. Freely. Of their own will. · \`-${dmg} HP\``,
+  (atk, def, dmg) => `🥊 → That was dumb luck and everybody knows it. **${def}** loses HP regardless. · \`-${dmg} HP\``,
+  (atk, def, dmg) => `🥊 → **${atk}** sneezes mid-swing and it lands. **${def}** is devastated. We all are. · \`-${dmg} HP\``,
 ];
 
 const ANNOUNCER_FLAVOR = [
@@ -265,10 +265,15 @@ function buildFightEmbed({ title, log, fighters, color = 0xcc0000 }) {
     hpBar(fighters[0].name, fighters[0].hp, nameWidth) + "\n" +
     hpBar(fighters[1].name, fighters[1].hp, nameWidth);
 
+  const formatLine = (l) => {
+    if (l.startsWith("🎙️") || l.startsWith("👥") || l.startsWith("🤖") || l.startsWith("🎤")) return `> ${l}`;
+    return l;
+  };
+
   // Trim oldest log lines if we're approaching the embed description limit
   let trimmedLog = [...log];
   while (trimmedLog.length > 1) {
-    const desc = trimmedLog.map(l => `> ${l}`).join("\n") + hpLines;
+    const desc = trimmedLog.map(formatLine).join("\n") + hpLines;
     if (desc.length <= DESCRIPTION_LIMIT) break;
     trimmedLog.shift();
   }
@@ -276,9 +281,7 @@ function buildFightEmbed({ title, log, fighters, color = 0xcc0000 }) {
   return new EmbedBuilder()
     .setColor(color)
     .setTitle(title)
-    .setDescription(
-      trimmedLog.map(l => `> ${l}`).join("\n") + hpLines
-    );
+    .setDescription(trimmedLog.map(formatLine).join("\n") + hpLines);
 }
 
 function pickMove() { return MOVES[Math.floor(Math.random() * MOVES.length)]; }
@@ -301,8 +304,8 @@ async function runFight(channel, challenger, defender) {
 
   await sleep(ROUND_DELAY_MS);
 
-  let round    = 1;
   let attacker = rand(0, 1);
+  let round    = 1;
 
   while (fighters[0].hp > 0 && fighters[1].hp > 0) {
     const atk = fighters[attacker];
@@ -317,30 +320,30 @@ async function runFight(channel, challenger, defender) {
       def.hp = Math.max(0, def.hp - dmg);
 
       if (dmg >= 24) {
-        // lucky hit threshold
-        line = pickFrom(LUCKY_HIT_FLAVOR, atk.name, def.name, dmg);
+        // Lucky hit — same format as normal, no clover
+        line = `🥊 → **${atk.name}** ${move.flavor} · **${move.name}** · \`-${dmg} HP\``;
       } else if (dmg >= 22) {
-        // knockdown threshold
+        // Knockdown — special flavor text, no blockquote
         line = pickFrom(KNOCKDOWN_FLAVOR, atk.name, def.name, dmg);
       } else {
-        line = `🥊 **Rnd ${round}** — **${atk.name}** ${move.flavor} · **${move.name}** · **-${dmg} HP**`;
+        line = `🥊 → **${atk.name}** ${move.flavor} · **${move.name}** · \`-${dmg} HP\``;
       }
     }
 
     log.push(line);
 
-    // Announcer commentary every 3 rounds
-    if (round % 3 === 0) {
+    // Announcer commentary every 4 rounds
+    if (round % 4 === 0) {
       log.push(pickFrom(ANNOUNCER_FLAVOR, atk.name, def.name));
     }
 
-    // Rare audience reaction
-    if (Math.random() < 0.25) {
+    // Audience reaction — 20% chance
+    if (Math.random() < 0.20) {
       log.push(AUDIENCE_FLAVOR[Math.floor(Math.random() * AUDIENCE_FLAVOR.length)]);
     }
 
-    // Very rare bot meta joke
-    if (Math.random() < 0.08) {
+    // Bot meta joke — 6% chance
+    if (Math.random() < 0.06) {
       log.push(pickFrom(META_FLAVOR, atk.name, def.name));
     }
 
@@ -362,7 +365,7 @@ async function runFight(channel, challenger, defender) {
   // Record stats
   recordResult(winner.member.id, loser.member.id);
 
-  // Final KO embed
+  // Final KO embed — keep full log visible
   const nameWidth = Math.max(fighters[0].name.length, fighters[1].name.length);
   await fightMsg.edit({
     embeds: [
@@ -370,9 +373,12 @@ async function runFight(channel, challenger, defender) {
         .setColor(0xffd700)
         .setTitle(`💀 Fight Over! 💀`)
         .setDescription(
-          `> 🏆 **${winner.name}** wins by knockout!\n` +
-          `> 😬 **${loser.name}** has been defeated.\n` +
-          `\n\u200B\n` +
+          log.map(l => {
+            // Hit lines sit outside blockquote, narration lines stay blockquoted
+            if (l.startsWith("🎙️") || l.startsWith("👥") || l.startsWith("🤖")) return `> ${l}`;
+            return l;
+          }).join("\n") +
+          "\n\u200B\n" +
           hpBar(fighters[0].name, fighters[0].hp, nameWidth) + "\n" +
           hpBar(fighters[1].name, fighters[1].hp, nameWidth)
         ),
