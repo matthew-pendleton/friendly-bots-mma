@@ -381,6 +381,7 @@ async function runFight(channel, challenger, defender) {
 
 // ── Interaction handler ───────────────────────────────────────────────────────
 client.on("interactionCreate", async (interaction) => {
+  try {
 
   // ── Button: accept/decline challenge ─────────────────────────────────────
   if (interaction.isButton()) {
@@ -512,15 +513,15 @@ client.on("interactionCreate", async (interaction) => {
       return interaction.reply({ content: "📭 No fights recorded yet.", ephemeral: true });
     }
 
-    // Fetch all members in parallel, fall back to mention if not in server
-    const memberFetches = await Promise.all(
-      top10.map(([id]) => interaction.guild.members.fetch(id).catch(() => null))
-    );
+    // Bulk fetch all top-10 members in one API call, then build a lookup map
+    const top10Ids = top10.map(([id]) => id);
+    const fetchedMembers = await interaction.guild.members.fetch({ user: top10Ids }).catch(() => new Map());
 
     const medals = ["🥇", "🥈", "🥉"];
     const ranked = top10.map(([id, u], idx) => {
-      const ratio = u.losses === 0 ? u.wins.toFixed(2) : (u.wins / u.losses).toFixed(2);
-      const name  = memberFetches[idx]?.displayName ?? `Unknown`;
+      const ratio  = u.losses === 0 ? u.wins.toFixed(2) : (u.wins / u.losses).toFixed(2);
+      const member = fetchedMembers.get(id);
+      const name   = member?.displayName ?? `Unknown (${id.slice(-4)})`;
       return { medal: medals[idx] ?? `${idx + 1}. `, name, wins: u.wins, losses: u.losses, ratio };
     });
 
@@ -611,6 +612,20 @@ client.on("interactionCreate", async (interaction) => {
         });
       } catch { /* message may already be gone */ }
     }, CHALLENGE_TIMEOUT_MS);
+  }
+  } catch (err) {
+    console.error("Unhandled interaction error:", err);
+    console.error("  Command:", interaction.commandName ?? interaction.customId ?? "unknown");
+    console.error("  User:   ", interaction.user?.tag ?? "unknown");
+    console.error("  Guild:  ", interaction.guild?.name ?? "null — bot may not be properly installed");
+    try {
+      const msg = "💥 Something went wrong. If this keeps happening, let a server admin know.";
+      if (interaction.deferred || interaction.replied) {
+        await interaction.editReply({ content: msg });
+      } else {
+        await interaction.reply({ content: msg, ephemeral: true });
+      }
+    } catch { /* interaction may have already expired */ }
   }
 });
 
