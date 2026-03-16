@@ -79,8 +79,8 @@ function pickFrom(arr, ...args) {
 // ── Slash command definitions ─────────────────────────────────────────────────
 const commands = [
   new SlashCommandBuilder()
-    .setName("friendly-mma")
-    .setDescription("Friendly MMA — mock 1v1 fights with real consequences 🥋")
+    .setName("unfriendly-mma")
+    .setDescription("Unfriendly MMA — mock 1v1 fights with real consequences 🥋")
     .setDMPermission(false)
     .addSubcommand((sub) =>
       sub
@@ -162,7 +162,7 @@ client.on("interactionCreate", async (interaction) => {
   }
 
   if (!interaction.isChatInputCommand()) return;
-  if (interaction.commandName !== "friendly-mma") return;
+  if (interaction.commandName !== "unfriendly-mma") return;
 
   const sub = interaction.options.getSubcommand();
 
@@ -170,13 +170,13 @@ client.on("interactionCreate", async (interaction) => {
   if (sub === "help") {
     return interaction.reply({
       content:
-        `## 🥋 Friendly MMA\n` +
-        `Challenge a server member to a mock MMA fight. The loser gets timed out.\n\n` +
+        `## 🥋 Unfriendly MMA\n` +
+        `Challenge a server member to a mock MMA fight. The loser *might* get timed out.\n\n` +
         `**Commands**\n` +
-        `\`/friendly-mma fight @user\` — challenge someone\n` +
-        `\`/friendly-mma stats [@user]\` — view fight stats\n` +
-        `\`/friendly-mma leaderboard\` — server rankings\n` +
-        `\`/friendly-mma help\` — show this message\n\n` +
+        `\`/unfriendly-mma fight @user\` — challenge someone\n` +
+        `\`/unfriendly-mma stats [@user]\` — view fight stats\n` +
+        `\`/unfriendly-mma leaderboard\` — server rankings\n` +
+        `\`/unfriendly-mma help\` — show this message\n\n` +
         `**How it works**\n` +
         `> Both fighters start at **${MAX_HP} HP**. Rounds alternate attacks until someone hits 0.\n` +
         `> Moves deal random damage. There's a 15% miss chance per round.\n` +
