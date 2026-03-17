@@ -1,14 +1,14 @@
-// ── friendly-mma ─────────────────────────────────────────────────────────────
+// ── unfriendly-mma ───────────────────────────────────────────────────────────
 // Part of the Friendly bot suite.
 //
 // App directory description:
 //   Challenge any server member to a 1v1 MMA fight. Rounds play out
-//   blow-by-blow with random moves, HP bars, and trash talk. The loser
-//   gets timed out. Simple as that.
+//   blow-by-blow with random moves, HP bars, and trash talk. Optional
+//   timeout for the loser when winner chooses "Finish Them".
 //
 // Language:    English only
 // DM support:  No (server-only)
-// Status:      Playing: Friendly MMA
+// Status:      Playing: Unfriendly MMA
 // ─────────────────────────────────────────────────────────────────────────────
 
 const {
@@ -104,7 +104,7 @@ const commands = [
       sub.setName("leaderboard").setDescription("Show the server fight leaderboard")
     )
     .addSubcommand((sub) =>
-      sub.setName("help").setDescription("How Friendly MMA works")
+      sub.setName("help").setDescription("How Unfriendly MMA works")
     ),
 ].map((cmd) => cmd.toJSON());
 
@@ -168,7 +168,7 @@ client.on("interactionCreate", async (interaction) => {
 
   const sub = interaction.options.getSubcommand();
 
-  // ── /friendly-mma help ────────────────────────────────────────────────────
+  // ── /unfriendly-mma help ───────────────────────────────────────────────────
   if (sub === "help") {
     return interaction.reply({
       content:
@@ -190,7 +190,7 @@ client.on("interactionCreate", async (interaction) => {
     });
   }
 
-  // ── /friendly-mma stats ───────────────────────────────────────────────────
+  // ── /unfriendly-mma stats ──────────────────────────────────────────────────
   if (sub === "stats") {
     const target     = interaction.options.getUser("user") ?? interaction.user;
     const stats      = loadStats();
@@ -237,7 +237,7 @@ client.on("interactionCreate", async (interaction) => {
     });
   }
 
-  // ── /friendly-mma leaderboard ─────────────────────────────────────────────
+  // ── /unfriendly-mma leaderboard ───────────────────────────────────────────
   if (sub === "leaderboard") {
     const stats = loadStats();
 
@@ -287,13 +287,13 @@ client.on("interactionCreate", async (interaction) => {
       embeds: [
         new EmbedBuilder()
           .setColor(0xffd700)
-          .setTitle("🏆 Friendly MMA — Leaderboard")
+          .setTitle("🏆 Unfriendly MMA — Leaderboard")
           .setDescription(table),
       ],
     });
   }
 
-  // ── /friendly-mma fight @user ─────────────────────────────────────────────
+  // ── /unfriendly-mma fight @user ───────────────────────────────────────────
   if (sub === "fight") {
     await interaction.deferReply();
 
@@ -375,7 +375,7 @@ client.on("interactionCreate", async (interaction) => {
 // ── Ready ─────────────────────────────────────────────────────────────────────
 client.once("ready", async () => {
   console.log(`✅ ${client.user.tag} is online.`);
-  client.user.setActivity("Friendly MMA", { type: ActivityType.Playing });
+  client.user.setActivity("Unfriendly MMA", { type: ActivityType.Playing });
   await registerCommands();
 });
 

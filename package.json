@@ -1,7 +1,7 @@
 {
-  "name": "friendly-mma",
+  "name": "unfriendly-mma",
   "version": "1.0.0",
-  "description": "1v1 mock MMA fight bot — part of the Friendly bot suite",
+  "description": "1v1 mock MMA fight bot (Unfriendly MMA) — part of the Friendly bot suite",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"

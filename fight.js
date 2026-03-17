@@ -244,7 +244,7 @@ function createFightEngine(config) {
 
       if (TIMEOUT_ENABLED) {
         try {
-          await loser.member.timeout(TIMEOUT_MINUTES * 60 * 1000, `Lost a Friendly MMA fight against ${winner.name}`);
+          await loser.member.timeout(TIMEOUT_MINUTES * 60 * 1000, `Lost an Unfriendly MMA fight against ${winner.name}`);
           await channel.send({ embeds: [finisherEmbed] });
         } catch {
           await channel.send({
