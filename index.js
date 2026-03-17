@@ -358,7 +358,26 @@ client.on("interactionCreate", async (interaction) => {
     console.error("  User:   ", interaction.user?.tag ?? "unknown");
     console.error("  Guild:  ", interaction.guild?.name ?? "null — bot may not be properly installed");
     try {
-      const msg = "💥 Something went wrong. If this keeps happening, let a server admin know.";
+      const channelHint =
+        interaction.channelId
+          ? `\n\n**Channel**: <#${interaction.channelId}>`
+          : "";
+
+      // Common Discord permission errors:
+      // 50001 = Missing Access (can't view channel / access resource)
+      // 50013 = Missing Permissions (can see it, but can't do an action like send embeds)
+      const code = err?.code;
+      const isMissingAccess = code === 50001;
+      const isMissingPerms  = code === 50013;
+
+      const msg = (isMissingAccess || isMissingPerms)
+        ? (
+          `🚫 I can't do that here due to missing permissions.${channelHint}\n\n` +
+          `Ask a server admin to grant me **View Channel**, **Send Messages**, and **Embed Links** in that channel.` +
+          (isMissingAccess ? `\n\n(Discord error: **Missing Access**)` : `\n\n(Discord error: **Missing Permissions**)`)
+        )
+        : "💥 Something went wrong. If this keeps happening, let a server admin know.";
+
       if (interaction.deferred || interaction.replied) {
         await interaction.editReply({ content: msg });
       } else {
