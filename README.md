@@ -1,6 +1,6 @@
 # 🥋 unfriendly-mma
 
-Part of the **Friendly** bot suite — mock 1v1 fights with optional timeout consequences.
+Part of the **Unfriendly** bot suite — mock 1v1 fights with optional timeout consequences.
 
 ## Commands
 
