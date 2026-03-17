@@ -313,12 +313,8 @@ client.on("interactionCreate", async (interaction) => {
       return interaction.editReply({ content: `⚠️ <@${opponent.id}> is currently timed out. Let them serve their time first.` });
     }
 
-    const botMember = interaction.guild.members.me;
-    if (TIMEOUT_ENABLED && !botMember.permissions.has(PermissionsBitField.Flags.ModerateMembers)) {
-      return interaction.editReply({
-        content: "⚠️ I need the **Moderate Members** permission to time out the loser. Ask a server admin!",
-      });
-    }
+    // Timeout permission is optional: if the server doesn't grant Moderate Members,
+    // the bot will still run fights (and just won't apply timeouts).
 
     if (isFighting(interaction.user.id, opponent.id)) {
       const who = activeFighters.has(interaction.user.id) ? "You are" : `<@${opponent.id}> is`;

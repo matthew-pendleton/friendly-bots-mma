@@ -178,16 +178,16 @@ function createFightEngine(config) {
 
     await fightMsg.edit({ embeds: [finalEmbed] });
 
-    const canModerate = channel.guild?.members?.me?.permissions?.has(PermissionsBitField.Flags.ModerateMembers);
-    // Only disable "Finish Them" when timeout is on and we can't actually timeout
-    const disableFinishThem = TIMEOUT_ENABLED && !canModerate;
+    const canModerate = !!channel.guild?.members?.me?.permissions?.has(PermissionsBitField.Flags.ModerateMembers);
+    // If we can't moderate, we still allow "Finish Them" but it becomes "finisher only" (no timeout).
+    const effectiveTimeout = TIMEOUT_ENABLED && canModerate;
 
     const decisionRow = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setCustomId(`mma_finish:${winner.member.id}:${loser.member.id}`)
         .setLabel("💀 Finish Them")
         .setStyle(ButtonStyle.Danger)
-        .setDisabled(disableFinishThem),
+        .setDisabled(false),
       new ButtonBuilder()
         .setCustomId(`mma_shake:${winner.member.id}:${loser.member.id}`)
         .setLabel("Shake hands")
@@ -234,15 +234,17 @@ function createFightEngine(config) {
       });
 
       const finisherLine = pickFrom(FINISHERS, winner.name, loser.name);
-      const consequenceText = TIMEOUT_ENABLED
+      const consequenceText = effectiveTimeout
         ? `**Consequence**: <@${loser.member.id}> gets timed out for **${TIMEOUT_MINUTES} minutes**.`
-        : `**Consequence**: *(timeout disabled — no one was muted)*`;
+        : canModerate
+          ? `**Consequence**: *(timeout disabled — no one was muted)*`
+          : `**Consequence**: *(no Moderate Members permission — no timeout applied)*`;
       const finisherEmbed = new EmbedBuilder()
         .setColor(0xcc0000)
         .setTitle("💀 FINISH THEM")
         .setDescription(`${finisherLine}\n\n${consequenceText}`);
 
-      if (TIMEOUT_ENABLED) {
+      if (effectiveTimeout) {
         try {
           await loser.member.timeout(TIMEOUT_MINUTES * 60 * 1000, `Lost an Unfriendly MMA fight against ${winner.name}`);
           await channel.send({ embeds: [finisherEmbed] });
