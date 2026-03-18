@@ -22,9 +22,10 @@ In `index.js`:
 | Constant | Default | Description |
 |---|---|---|
 | `MAX_HP` | `100` | Starting HP for both fighters |
-| `TIMEOUT_MINUTES` | `5` | How long the loser is timed out (when enabled) |
-| `TIMEOUT_ENABLED` | `false` | Set `true` to actually timeout the loser when winner chooses "Finish Them" |
+| `TIMEOUT_MINUTES` | `5` | How long the loser is timed out when winner chooses "Finish Them" (only if the server grants the bot **Moderate Members**) |
 | `ROUND_DELAY_MS` | `1000` | Delay between rounds (ms) |
+
+**Timeout is controlled by the server:** if the server grants the bot **Moderate Members**, the winner can choose to timeout the loser. If not, matches end without any timeout.
 
 In `dialogue.js`: add or edit moves in the `MOVES` array — each needs a `name`, `damage: [min, max]`, and `flavor` string.
 

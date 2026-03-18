@@ -79,7 +79,6 @@ function createFightEngine(config) {
   const {
     MAX_HP,
     TIMEOUT_MINUTES,
-    TIMEOUT_ENABLED = true,
     ROUND_DELAY_MS,
     ANNOUNCER_EVERY_ROUNDS,
     AUDIENCE_CHANCE,
@@ -178,9 +177,8 @@ function createFightEngine(config) {
 
     await fightMsg.edit({ embeds: [finalEmbed] });
 
+    // Server admin controls timeout: only attempt it if the bot has Moderate Members in this server.
     const canModerate = !!channel.guild?.members?.me?.permissions?.has(PermissionsBitField.Flags.ModerateMembers);
-    // If we can't moderate, we still allow "Finish Them" but it becomes "finisher only" (no timeout).
-    const effectiveTimeout = TIMEOUT_ENABLED && canModerate;
 
     const decisionRow = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
@@ -234,17 +232,15 @@ function createFightEngine(config) {
       });
 
       const finisherLine = pickFrom(FINISHERS, winner.name, loser.name);
-      const consequenceText = effectiveTimeout
+      const consequenceText = canModerate
         ? `**Consequence**: <@${loser.member.id}> gets timed out for **${TIMEOUT_MINUTES} minutes**.`
-        : canModerate
-          ? `**Consequence**: *(timeout disabled — no one was muted)*`
-          : `**Consequence**: *(no Moderate Members permission — no timeout applied)*`;
+        : `**Consequence**: *(No timeout — this server hasn't granted me Moderate Members.)*`;
       const finisherEmbed = new EmbedBuilder()
         .setColor(0xcc0000)
         .setTitle("💀 FINISH THEM")
         .setDescription(`${finisherLine}\n\n${consequenceText}`);
 
-      if (effectiveTimeout) {
+      if (canModerate) {
         try {
           await loser.member.timeout(TIMEOUT_MINUTES * 60 * 1000, `Lost an Unfriendly MMA fight against ${winner.name}`);
           await channel.send({ embeds: [finisherEmbed] });

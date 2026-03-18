@@ -46,15 +46,18 @@ const client = new Client({
 
 // ── Active fight tracking (per user, not per pair) ───────────────────────────
 const activeFighters = new Set();
+// Tracks only "awaiting accept/decline" challenges (not active fights)
+// key: `${challengerId}:${defenderId}` -> timeout handle
+const pendingChallenges = new Map();
 
 function addFighters(...ids)    { ids.forEach(id => activeFighters.add(id)); }
 function removeFighters(...ids) { ids.forEach(id => activeFighters.delete(id)); }
 function isFighting(...ids)     { return ids.some(id => activeFighters.has(id)); }
+function challengeKey(challengerId, defenderId) { return `${challengerId}:${defenderId}`; }
 
 // ── Config ────────────────────────────────────────────────────────────────────
 const MAX_HP               = 100;
 const TIMEOUT_MINUTES      = 5;
-const TIMEOUT_ENABLED      = false; // set true to actually timeout the loser when "Finish Them" is used
 const ROUND_DELAY_MS       = 1000;
 const CHALLENGE_TIMEOUT_MS = 60000;
 // Fight flavor tuning (lower = less chatty)
@@ -66,7 +69,6 @@ const POST_FIGHT_DECISION_MS = 10000;
 const { runFight } = createFightEngine({
   MAX_HP,
   TIMEOUT_MINUTES,
-  TIMEOUT_ENABLED,
   ROUND_DELAY_MS,
   ANNOUNCER_EVERY_ROUNDS,
   AUDIENCE_CHANCE,
@@ -134,6 +136,14 @@ client.on("interactionCreate", async (interaction) => {
       return interaction.reply({ content: "⚠️ This challenge isn't for you.", ephemeral: true });
     }
 
+    // If this was a pending challenge, cancel its auto-expire timer
+    const key = challengeKey(challengerId, defenderId);
+    const pendingTimer = pendingChallenges.get(key);
+    if (pendingTimer) {
+      clearTimeout(pendingTimer);
+      pendingChallenges.delete(key);
+    }
+
     if (action === "mma_decline") {
       const declineLine = pickFrom(DECLINE_LINES, challengerId, defenderId);
       await interaction.update({ content: declineLine, embeds: [], components: [] });
@@ -182,9 +192,7 @@ client.on("interactionCreate", async (interaction) => {
         `**How it works**\n` +
         `> Both fighters start at **${MAX_HP} HP**. Rounds alternate attacks until someone hits 0.\n` +
         `> Moves deal random damage. There's a 15% miss chance per round.\n` +
-        (TIMEOUT_ENABLED
-          ? `> If the winner chooses **Finish Them**, the loser is timed out for **${TIMEOUT_MINUTES} minutes**.\n\n`
-          : `> **Timeout is currently disabled** (trial mode — no one gets muted).\n\n`) +
+        `> If the bot has **Moderate Members**, the winner can choose **Finish Them** to time out the loser for **${TIMEOUT_MINUTES} minutes**. Otherwise the match just ends.\n\n` +
         `*Part of the **Friendly** bot suite.*`,
       ephemeral: true,
     });
@@ -341,8 +349,11 @@ client.on("interactionCreate", async (interaction) => {
     });
 
     // Auto-expire the challenge after 60s
-    setTimeout(async () => {
-      if (!isFighting(interaction.user.id, opponent.id)) return;
+    const key = challengeKey(interaction.user.id, opponent.id);
+    const timer = setTimeout(async () => {
+      // Only expire if it's still pending (not accepted / declined)
+      if (!pendingChallenges.has(key)) return;
+      pendingChallenges.delete(key);
       removeFighters(interaction.user.id, opponent.id);
       try {
         await interaction.editReply({
@@ -351,6 +362,7 @@ client.on("interactionCreate", async (interaction) => {
         });
       } catch { /* message may already be gone */ }
     }, CHALLENGE_TIMEOUT_MS);
+    pendingChallenges.set(key, timer);
   }
   } catch (err) {
     console.error("Unhandled interaction error:", err);
