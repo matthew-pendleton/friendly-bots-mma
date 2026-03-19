@@ -244,7 +244,13 @@ function createFightEngine(config) {
         try {
           await loser.member.timeout(TIMEOUT_MINUTES * 60 * 1000, `Lost an Unfriendly MMA fight against ${winner.name}`);
           await channel.send({ embeds: [finisherEmbed] });
-        } catch {
+        } catch (err) {
+          console.error("Timeout failed:", err?.code, err?.message, err);
+          const reason = err?.code === 50013
+            ? "My role might be below theirs, or I'm missing permission in this server/channel."
+            : err?.code === 50001
+              ? "I don't have access to moderate this user."
+              : "Discord didn't allow it. A server admin can check the bot's role position and permissions.";
           await channel.send({
             embeds: [
               new EmbedBuilder()
@@ -252,7 +258,7 @@ function createFightEngine(config) {
                 .setTitle("⚠️ Couldn't finish them")
                 .setDescription(
                   `${finisherLine}\n\n` +
-                  `Tried to time out <@${loser.member.id}>, but they may be a mod or above my role.`
+                  `Couldn't time out <@${loser.member.id}>: ${reason}`
                 ),
             ],
           });
