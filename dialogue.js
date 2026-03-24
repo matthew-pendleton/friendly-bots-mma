@@ -26,19 +26,13 @@ const MISS_FLAVOR = [
   (atk) => `**${atk}** doesn't have enough PP for this move! *classic, amirite??*. · \`miss\``,
   (atk) => `**${atk}** swings. It does not land. · \`miss\``,
   (atk) => `**${atk}** attempts anime protagonist energy. Whiff. · \`miss\``,
-  (atk) => `**${atk}** attempts violence but achieves interpretive dance by accident. · \`miss\``,
+  (atk) => `**${atk}** attempts violence. · \`miss\``,
 ];
 
 // Used on high-damage rounds (knockdown flavor line). Styled like a normal hit line.
 const KNOCKDOWN_FLAVOR = [
   (atk, def, dmg) => `**${atk}** hits **${def}** so hard they wake up on that cart in Skyrim — \`-${dmg} HP\``,
-  (atk, def, dmg) => `**${def}** wakes up mid-fight and immediately wishes they hadn't — \`-${dmg} HP\` from **${atk}**`,
   (atk, def, dmg) => `**${atk}** catches **${def}** so hard it makes NSFW sounds — \`-${dmg} HP\``,
-  (atk, def, dmg) => `**${atk}** just rearranged **${def}**'s entire afternoon — \`-${dmg} HP\``,
-  (atk, def, dmg) => `**${def}** takes \`-${dmg} HP\` and their body files a formal complaint with their brain`,
-  (atk, def, dmg) => `**${atk}** lands that and **${def}**'s legs send a resignation letter — \`-${dmg} HP\``,
-  (atk, def, dmg) => `**${def}** is still standing. **${atk}** is fixing that — \`-${dmg} HP\``,
-  (atk, def, dmg) => `**${atk}** hits **${def}** with something that has no business being that clean — \`-${dmg} HP\``,
 ];
 
 // Used for very high-damage rounds, formatted like a normal hit line.
@@ -105,6 +99,8 @@ const FINISHERS = [
   (w, l) => `💀 **FATALITY** — *“What is that glowing stick? Is that... is that an actual lightsaber?! For the love of everything, don't! **${w}** swings... *'By the rivers of Babylon!'* **${l}** has been perfectly cut in half! Vertically separated! The anatomy... **THE ANATOMY IS WRONG!** **${l}**’s insides are cartoon dust! What am I witnessing?!”* 🗡️🌌`,
   (w, l) => `💀 **FINISHER** — *“**${l}** lands a powerful roundhouse kick... but **${w}** just bent backward in slow motion?! What am I seeing? **${w}** dodged! They whisper 'My name... is **${w}**,'... **AND PUNCHES THEIR FIST DIRECTLY THROUGH **${l}**'S HEART!** **${w}**’s hand is on the other side! This is murder!”* 🖥️❤️`,
   (w, l) => `💀 **FINISHER** — *“My God! **${w}** has reached under the ring... that’s not a chair! That's an industrial staple gun! NO! Don’t you do it! He’s grabbed **${l}**’s nose! **CHUNQUE.** *Oh, the humanity!* He just stapled **${l}**’s nose directly to his own chest! **${l}** is screaming! **${w}** just got a three-count and is stapling a 'Property of **${w}**' sign to the canvas! It’s a tragedy!”* 🔫👃`,
+  (w, l) => `💀 **FINISHER** — *“**${w}** just pulled out a vintage 1887 shotgun! **${w}** puts on a pair of sunglasses and says... 'Hasta la vista, **baby**.' He puts the barrel right in **${l}**'s face. *BLAM!* By god, there’s a metallic endoskeleton where **${l}** used to be! Was this entire fight staged?!”* 😎🔫`,
+
 ];
 
 // Used when a challenge is issued (shown publicly with accept/decline buttons).
@@ -123,6 +119,8 @@ const CHALLENGE_TAUNTS = [
   (c, d) => `🚿 <@${c}> has publicly accused <@${d}> of using 3-in-1 shampoo/conditioner/body wash. Defend your honor.`,
   (c, d) => `🤓 <@${c}> is challenging <@${d}> because they remind them of a stepfather they didn't like in 2008.`,
   (c, d) => `🗑️ <@${c}> says it's trash day and they are ready to take <@${d}> to the curb.`,
+  (c, d) => `🥣 <@${c}> is accusing <@${d}> of putting the milk in the bowl *before* the cereal. We can't have people like that in this server.`,
+  (c, d) => `🤮 <@${c}> is accusing <@${d}> of dipping their pineapple and tuna pizza *into* a lukewarm glass of whole milk. This is unacceptable! This is outrageous! This is a cry for help or a fight!`,
 ];
 
 // Used if the defender clicks "Decline".

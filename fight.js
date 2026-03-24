@@ -254,8 +254,8 @@ function createFightEngine(config) {
           await channel.send({
             embeds: [
               new EmbedBuilder()
-                .setColor(0x808080)
-                .setTitle("⚠️ Couldn't finish them")
+                .setColor(0xcc0000)
+                .setTitle("💀 FINISH THEM")
                 .setDescription(
                   `${finisherLine}\n\n` +
                   `Couldn't time out <@${loser.member.id}>: ${reason}`
