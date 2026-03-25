@@ -49,6 +49,8 @@ const activeFighters = new Set();
 // Tracks only "awaiting accept/decline" challenges (not active fights)
 // key: `${challengerId}:${defenderId}` -> timeout handle
 const pendingChallenges = new Map();
+// Prevents duplicate runFight() if two Accept interactions arrive at once (double-tap, etc.)
+const activeFightSessions = new Set();
 
 function addFighters(...ids)    { ids.forEach(id => activeFighters.add(id)); }
 function removeFighters(...ids) { ids.forEach(id => activeFighters.delete(id)); }
@@ -152,21 +154,33 @@ client.on("interactionCreate", async (interaction) => {
     }
 
     if (action === "mma_accept") {
-      await interaction.update({
-        content: `✅ <@${defenderId}> accepted the challenge! Let the fight begin! 💥`,
-        embeds: [],
-        components: [],
-      });
-
-      const challenger = await interaction.guild.members.fetch(challengerId);
-      const defender   = await interaction.guild.members.fetch(defenderId);
+      // Lock synchronously before any await — parallel Accept handlers would otherwise both run runFight().
+      if (activeFightSessions.has(key)) {
+        return interaction.reply({
+          content: "⚠️ That match already started — you only need to accept once.",
+          ephemeral: true,
+        });
+      }
+      activeFightSessions.add(key);
 
       try {
-        await runFight(interaction.channel, challenger, defender);
-      } catch (err) {
-        console.error("Fight error:", err);
-        await interaction.channel.send("💥 Something went wrong mid-fight. The ref called it off.");
+        await interaction.update({
+          content: `✅ <@${defenderId}> accepted the challenge! Let the fight begin! 💥`,
+          embeds: [],
+          components: [],
+        });
+
+        const challenger = await interaction.guild.members.fetch(challengerId);
+        const defender   = await interaction.guild.members.fetch(defenderId);
+
+        try {
+          await runFight(interaction.channel, challenger, defender);
+        } catch (err) {
+          console.error("Fight error:", err);
+          await interaction.channel.send("💥 Something went wrong mid-fight. The ref called it off.");
+        }
       } finally {
+        activeFightSessions.delete(key);
         removeFighters(challengerId, defenderId);
       }
     }
