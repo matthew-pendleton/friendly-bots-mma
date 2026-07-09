@@ -259,62 +259,80 @@ client.on("interactionCreate", async (interaction) => {
     });
   }
 
-  // ── /unfriendly-mma leaderboard ───────────────────────────────────────────
-  if (sub === "leaderboard") {
-    const stats = loadStats();
+// ── /unfriendly-mma leaderboard ───────────────────────────────────────────
+if (sub === "leaderboard") {
+  const stats = loadStats();
 
-    // Load current server members so we can exclude users who left (stats.json is left as-is).
+  // Load current server members so we can exclude users who left.
+  // If this fails/times out on a big guild, fall back to cache instead
+  // of blowing up the whole command.
+  try {
     await interaction.guild.members.fetch();
-
-    const sortByRank = ([, a], [, b]) => {
-      if (b.wins !== a.wins) return b.wins - a.wins;
-      const ratioA = a.losses === 0 ? a.wins : a.wins / a.losses;
-      const ratioB = b.losses === 0 ? b.wins : b.wins / b.losses;
-      return ratioB - ratioA;
-    };
-
-    const top10 = Object.entries(stats)
-      .filter(([id, u]) => u.wins + u.losses > 0 && interaction.guild.members.cache.has(id))
-      .sort(sortByRank)
-      .slice(0, 10);
-
-    if (top10.length === 0) {
-      return interaction.reply({ content: "📭 No fight stats for current server members.", ephemeral: true });
-    }
-
-    const medals = ["🥇", "🥈", "🥉"];
-    const ranked = top10.map(([id, u], idx) => {
-      const ratio  = u.losses === 0 ? u.wins.toFixed(2) : (u.wins / u.losses).toFixed(2);
-      const member = interaction.guild.members.cache.get(id);
-      const name   = member.displayName;
-      return { medal: medals[idx] ?? "", name, wins: u.wins, losses: u.losses, ratio }; // ← medal is emoji or empty, never a number
-    });
-
-    // Column widths
-    const nameW  = Math.max(4, ...ranked.map(r => r.name.length));
-    const winsW  = Math.max(1, ...ranked.map(r => String(r.wins).length));
-    const lossW  = Math.max(1, ...ranked.map(r => String(r.losses).length));
-    const ratioW = Math.max(5, ...ranked.map(r => r.ratio.length));
-
-    const header = `${"RANK".padEnd(6)} ${"NAME".padEnd(nameW)}  ${"W".padStart(winsW)}  ${"L".padStart(lossW)}  ${"RATIO".padStart(ratioW)}`;
-    const divider = "─".repeat(header.length);
-    const tableRows = ranked.map((r, i) => {
-      const rankNum = `${i + 1}.`.padEnd(3);          // "1.", "2.", ... "10."
-      const rank = `${r.medal}${r.medal ? " " : ""}${rankNum}`.padEnd(6).slice(0, 6);
-      return `${rank} ${r.name.padEnd(nameW)}  ${String(r.wins).padStart(winsW)}  ${String(r.losses).padStart(lossW)}  ${r.ratio.padStart(ratioW)}`;
-    });
-
-    const table = "```\n" + header + "\n" + divider + "\n" + tableRows.join("\n") + "\n```";
-
-    return interaction.reply({
-      embeds: [
-        new EmbedBuilder()
-          .setColor(0xffd700)
-          .setTitle("🏆 Unfriendly MMA — Leaderboard")
-          .setDescription(table),
-      ],
-    });
+  } catch (err) {
+    console.error("Leaderboard: members.fetch() failed, using cache:", err);
   }
+
+  const sortByRank = ([, a], [, b]) => {
+    if (b.wins !== a.wins) return b.wins - a.wins;
+    const ratioA = a.losses === 0 ? a.wins : a.wins / a.losses;
+    const ratioB = b.losses === 0 ? b.wins : b.wins / b.losses;
+    return ratioB - ratioA;
+  };
+
+  const top10 = Object.entries(stats)
+    .filter(([id, u]) => u.wins + u.losses > 0 && interaction.guild.members.cache.has(id))
+    .sort(sortByRank)
+    .slice(0, 10);
+
+  if (top10.length === 0) {
+    return interaction.reply({ content: "📭 No fight stats for current server members.", ephemeral: true });
+  }
+
+  const MEDALS = ["🥇", "🥈", "🥉"];
+  const MAX_NAME_LEN = 16;
+
+  // Backticks break out of the code block, and CJK/emoji-heavy names render
+  // wider on screen than .length suggests — sanitize + hard-cap for
+  // predictable row widths.
+  const sanitizeName = (name) => {
+    const clean = name.replace(/`/g, "'");
+    return clean.length > MAX_NAME_LEN ? clean.slice(0, MAX_NAME_LEN - 1) + "…" : clean;
+  };
+
+  const ranked = top10.map(([id, u], idx) => {
+    const ratio  = u.losses === 0 ? u.wins.toFixed(2) : (u.wins / u.losses).toFixed(2);
+    const member = interaction.guild.members.cache.get(id);
+    const name   = sanitizeName(member?.displayName ?? "Unknown");
+    return { rank: idx + 1, medal: MEDALS[idx] ?? null, name, wins: u.wins, losses: u.losses, ratio };
+  });
+
+  const nameW  = Math.max(4, ...ranked.map(r => r.name.length));
+  const winsW  = Math.max(1, ...ranked.map(r => String(r.wins).length));
+  const lossW  = Math.max(1, ...ranked.map(r => String(r.losses).length));
+  const ratioW = Math.max(5, ...ranked.map(r => r.ratio.length));
+
+  const header  = `${"#".padEnd(3)} ${"NAME".padEnd(nameW)}  ${"W".padStart(winsW)}  ${"L".padStart(lossW)}  ${"RATIO".padStart(ratioW)}`;
+  const divider = "─".repeat(header.length);
+  const tableRows = ranked.map((r) => {
+    const rankLabel = `${r.rank}.`.padEnd(3);
+    return `${rankLabel} ${r.name.padEnd(nameW)}  ${String(r.wins).padStart(winsW)}  ${String(r.losses).padStart(lossW)}  ${r.ratio.padStart(ratioW)}`;
+  });
+
+  const table = "```\n" + header + "\n" + divider + "\n" + tableRows.join("\n") + "\n```";
+
+  // Medals live in a plain-text legend above the table now, not inside the
+  // monospace block, so they can't throw off column alignment.
+  const medalLegend = ranked.slice(0, 3).map(r => `${r.medal} ${r.name}`).join("   ");
+
+  return interaction.reply({
+    embeds: [
+      new EmbedBuilder()
+        .setColor(0xffd700)
+        .setTitle("🏆 Unfriendly MMA — Leaderboard")
+        .setDescription(`${medalLegend}\n${table}`),
+    ],
+  });
+}
 
   // ── /unfriendly-mma fight @user ───────────────────────────────────────────
   if (sub === "fight") {
