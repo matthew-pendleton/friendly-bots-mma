@@ -287,7 +287,7 @@ client.on("interactionCreate", async (interaction) => {
       const ratio  = u.losses === 0 ? u.wins.toFixed(2) : (u.wins / u.losses).toFixed(2);
       const member = interaction.guild.members.cache.get(id);
       const name   = member.displayName;
-      return { medal: medals[idx] ?? `${idx + 1}. `, name, wins: u.wins, losses: u.losses, ratio };
+      return { medal: medals[idx] ?? "", name, wins: u.wins, losses: u.losses, ratio }; // ← medal is emoji or empty, never a number
     });
 
     // Column widths
@@ -299,7 +299,8 @@ client.on("interactionCreate", async (interaction) => {
     const header = `${"RANK".padEnd(6)} ${"NAME".padEnd(nameW)}  ${"W".padStart(winsW)}  ${"L".padStart(lossW)}  ${"RATIO".padStart(ratioW)}`;
     const divider = "─".repeat(header.length);
     const tableRows = ranked.map((r, i) => {
-      const rank = `${r.medal} ${String(i + 1).padEnd(2)}`.slice(0, 6);
+      const rankNum = `${i + 1}.`.padEnd(3);          // "1.", "2.", ... "10."
+      const rank = `${r.medal}${r.medal ? " " : ""}${rankNum}`.padEnd(6).slice(0, 6);
       return `${rank} ${r.name.padEnd(nameW)}  ${String(r.wins).padStart(winsW)}  ${String(r.losses).padStart(lossW)}  ${r.ratio.padStart(ratioW)}`;
     });
 
