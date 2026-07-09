@@ -263,30 +263,30 @@ client.on("interactionCreate", async (interaction) => {
   if (sub === "leaderboard") {
     const stats = loadStats();
 
-    // Build sorted top-10 with IDs preserved
+    // Load current server members so we can exclude users who left (stats.json is left as-is).
+    await interaction.guild.members.fetch();
+
+    const sortByRank = ([, a], [, b]) => {
+      if (b.wins !== a.wins) return b.wins - a.wins;
+      const ratioA = a.losses === 0 ? a.wins : a.wins / a.losses;
+      const ratioB = b.losses === 0 ? b.wins : b.wins / b.losses;
+      return ratioB - ratioA;
+    };
+
     const top10 = Object.entries(stats)
-      .filter(([, u]) => u.wins + u.losses > 0)
-      .sort(([, a], [, b]) => {
-        if (b.wins !== a.wins) return b.wins - a.wins;
-        const ratioA = a.losses === 0 ? a.wins : a.wins / a.losses;
-        const ratioB = b.losses === 0 ? b.wins : b.wins / b.losses;
-        return ratioB - ratioA;
-      })
+      .filter(([id, u]) => u.wins + u.losses > 0 && interaction.guild.members.cache.has(id))
+      .sort(sortByRank)
       .slice(0, 10);
 
     if (top10.length === 0) {
-      return interaction.reply({ content: "📭 No fights recorded yet.", ephemeral: true });
+      return interaction.reply({ content: "📭 No fight stats for current server members.", ephemeral: true });
     }
-
-    // Bulk fetch all top-10 members in one API call, then build a lookup map
-    const top10Ids = top10.map(([id]) => id);
-    const fetchedMembers = await interaction.guild.members.fetch({ user: top10Ids }).catch(() => new Map());
 
     const medals = ["🥇", "🥈", "🥉"];
     const ranked = top10.map(([id, u], idx) => {
       const ratio  = u.losses === 0 ? u.wins.toFixed(2) : (u.wins / u.losses).toFixed(2);
-      const member = fetchedMembers.get(id);
-      const name   = member?.displayName ?? `Unknown (${id.slice(-4)})`;
+      const member = interaction.guild.members.cache.get(id);
+      const name   = member.displayName;
       return { medal: medals[idx] ?? `${idx + 1}. `, name, wins: u.wins, losses: u.losses, ratio };
     });
 
