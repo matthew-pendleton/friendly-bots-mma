@@ -46,15 +46,41 @@ const client = new Client({
 
 // ── Active fight tracking (per user, not per pair) ───────────────────────────
 const activeFighters = new Set();
+const busySince = new Map(); // userId -> Date.now() when they were marked busy
 // Tracks only "awaiting accept/decline" challenges (not active fights)
 // key: `${challengerId}:${defenderId}` -> timeout handle
 const pendingChallenges = new Map();
 // Prevents duplicate runFight() if two Accept interactions arrive at once (double-tap, etc.)
 const activeFightSessions = new Set();
 
-function addFighters(...ids)    { ids.forEach(id => activeFighters.add(id)); }
-function removeFighters(...ids) { ids.forEach(id => activeFighters.delete(id)); }
-function isFighting(...ids)     { return ids.some(id => activeFighters.has(id)); }
+function addFighters(...ids) {
+  const now = Date.now();
+  ids.forEach((id) => {
+    activeFighters.add(id);
+    if (!busySince.has(id)) busySince.set(id, now);
+  });
+}
+function removeFighters(...ids) {
+  ids.forEach((id) => {
+    activeFighters.delete(id);
+    busySince.delete(id);
+  });
+}
+function pruneStaleFighters(...ids) {
+  const now = Date.now();
+  ids.forEach((id) => {
+    if (!activeFighters.has(id)) return;
+    const since = busySince.get(id);
+    if (since != null && now - since <= BUSY_TTL_MS) return;
+    console.warn(`Pruning stale fight lock for ${id} (held ${Math.round((now - since) / 1000)}s)`);
+    activeFighters.delete(id);
+    busySince.delete(id);
+  });
+}
+function isFighting(...ids) {
+  pruneStaleFighters(...ids);
+  return ids.some((id) => activeFighters.has(id));
+}
 function challengeKey(challengerId, defenderId) { return `${challengerId}:${defenderId}`; }
 
 // ── Config ────────────────────────────────────────────────────────────────────
@@ -62,6 +88,8 @@ const MAX_HP               = 100;
 const TIMEOUT_MINUTES      = 5;
 const ROUND_DELAY_MS       = 1000;
 const CHALLENGE_TIMEOUT_MS = 60000;
+// Safety valve: if a lock is left behind (error before expire/cleanup), drop it after this.
+const BUSY_TTL_MS          = 8 * 60 * 1000;
 // Fight flavor tuning (lower = less chatty)
 const ANNOUNCER_EVERY_ROUNDS = 6;    // was 4
 const AUDIENCE_CHANCE        = 0.10; // was 0.20
@@ -148,8 +176,11 @@ client.on("interactionCreate", async (interaction) => {
 
     if (action === "mma_decline") {
       const declineLine = pickFrom(DECLINE_LINES, challengerId, defenderId);
-      await interaction.update({ content: declineLine, embeds: [], components: [] });
-      removeFighters(challengerId, defenderId);
+      try {
+        await interaction.update({ content: declineLine, embeds: [], components: [] });
+      } finally {
+        removeFighters(challengerId, defenderId);
+      }
       return;
     }
 
@@ -376,13 +407,19 @@ if (sub === "leaderboard") {
     );
 
     const taunt = pickFrom(CHALLENGE_TAUNTS, interaction.user.id, opponent.id);
-    await interaction.editReply({
-      content: `${taunt}\n\n<@${opponent.id}>, do you accept?`,
-      components: [row],
-    });
+    const key = challengeKey(interaction.user.id, opponent.id);
+
+    try {
+      await interaction.editReply({
+        content: `${taunt}\n\n<@${opponent.id}>, do you accept?`,
+        components: [row],
+      });
+    } catch (err) {
+      removeFighters(interaction.user.id, opponent.id);
+      throw err;
+    }
 
     // Auto-expire the challenge after 60s
-    const key = challengeKey(interaction.user.id, opponent.id);
     const timer = setTimeout(async () => {
       // Only expire if it's still pending (not accepted / declined)
       if (!pendingChallenges.has(key)) return;
