@@ -143,6 +143,16 @@ const TIMEOUT_LINES = [
   (c, d) => `🚽 The 60-second timer ran out while <@${d}> was in the bathroom fighting for their life against a spicy burrito. No fight.`,
 ];
 
+// Quiet, ephemeral notice when a server can't start another match yet.
+function matchCooldownLine({ inProgress, remainingMs, cooldownSeconds }) {
+  if (inProgress) {
+    return `A match is already underway. The next one can start ${cooldownSeconds} seconds after it finishes.`;
+  }
+  const seconds = Math.max(1, Math.ceil(remainingMs / 1000));
+  const unit = seconds === 1 ? "second" : "seconds";
+  return `The cage is cooling down. Another match can start in ${seconds} ${unit}.`;
+}
+
 module.exports = {
   MOVES,
   MISS_FLAVOR,
@@ -155,5 +165,6 @@ module.exports = {
   CHALLENGE_TAUNTS,
   DECLINE_LINES,
   TIMEOUT_LINES,
+  matchCooldownLine,
 };
 

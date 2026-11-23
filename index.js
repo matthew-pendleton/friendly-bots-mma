@@ -31,6 +31,7 @@ const {
   CHALLENGE_TAUNTS,
   DECLINE_LINES,
   TIMEOUT_LINES,
+  matchCooldownLine,
 } = require("./dialogue");
 
 const { loadStats } = require("./stats");
@@ -52,6 +53,9 @@ const busySince = new Map(); // userId -> Date.now() when they were marked busy
 const pendingChallenges = new Map();
 // Prevents duplicate runFight() if two Accept interactions arrive at once (double-tap, etc.)
 const activeFightSessions = new Set();
+// Server-wide match lock. One match at a time, then a cooldown before the next can start.
+// guildId -> { inProgress: boolean, cooldownUntil: number }
+const guildMatchLocks = new Map();
 
 function addFighters(...ids) {
   const now = Date.now();
@@ -83,11 +87,47 @@ function isFighting(...ids) {
 }
 function challengeKey(challengerId, defenderId) { return `${challengerId}:${defenderId}`; }
 
+function getMatchBlock(guildId) {
+  if (!guildId) return null;
+  const state = guildMatchLocks.get(guildId);
+  if (!state) return null;
+  if (state.inProgress) return { inProgress: true, remainingMs: null };
+  const remainingMs = state.cooldownUntil - Date.now();
+  if (remainingMs > 0) return { inProgress: false, remainingMs };
+  guildMatchLocks.delete(guildId);
+  return null;
+}
+
+function beginMatch(guildId) {
+  guildMatchLocks.set(guildId, { inProgress: true, cooldownUntil: 0 });
+}
+
+function endMatch(guildId) {
+  guildMatchLocks.set(guildId, {
+    inProgress: false,
+    cooldownUntil: Date.now() + MATCH_COOLDOWN_MS,
+  });
+}
+
+function cancelMatch(guildId) {
+  const state = guildMatchLocks.get(guildId);
+  if (state?.inProgress) guildMatchLocks.delete(guildId);
+}
+
+function matchCooldownReply(block) {
+  return {
+    content: matchCooldownLine({ ...block, cooldownSeconds: MATCH_COOLDOWN_MS / 1000 }),
+    ephemeral: true,
+  };
+}
+
 // ── Config ────────────────────────────────────────────────────────────────────
 const MAX_HP               = 100;
 const TIMEOUT_MINUTES      = 5;
 const ROUND_DELAY_MS       = 1000;
 const CHALLENGE_TIMEOUT_MS = 60000;
+// After a match finishes, the whole server waits this long before another can start.
+const MATCH_COOLDOWN_MS    = 90 * 1000;
 // Safety valve: if a lock is left behind (error before expire/cleanup), drop it after this.
 const BUSY_TTL_MS          = 8 * 60 * 1000;
 // Fight flavor tuning (lower = less chatty)
@@ -192,7 +232,13 @@ client.on("interactionCreate", async (interaction) => {
           ephemeral: true,
         });
       }
+
+      const block = getMatchBlock(interaction.guildId);
+      if (block) return interaction.reply(matchCooldownReply(block));
+
       activeFightSessions.add(key);
+      beginMatch(interaction.guildId);
+      let fightStarted = false;
 
       try {
         await interaction.update({
@@ -204,6 +250,7 @@ client.on("interactionCreate", async (interaction) => {
         const challenger = await interaction.guild.members.fetch(challengerId);
         const defender   = await interaction.guild.members.fetch(defenderId);
 
+        fightStarted = true;
         try {
           await runFight(interaction.channel, challenger, defender);
         } catch (err) {
@@ -213,6 +260,8 @@ client.on("interactionCreate", async (interaction) => {
       } finally {
         activeFightSessions.delete(key);
         removeFighters(challengerId, defenderId);
+        if (fightStarted) endMatch(interaction.guildId);
+        else cancelMatch(interaction.guildId);
       }
     }
     return;
@@ -237,7 +286,8 @@ client.on("interactionCreate", async (interaction) => {
         `**How it works**\n` +
         `> Both fighters start at **${MAX_HP} HP**. Rounds alternate attacks until someone hits 0.\n` +
         `> Moves deal random damage. There's a 15% miss chance per round.\n` +
-        `> If the bot has **Moderate Members**, the winner can choose **Finish Them** to time out the loser for **${TIMEOUT_MINUTES} minutes**. Otherwise the match just ends.\n\n` +
+        `> If the bot has **Moderate Members**, the winner can choose **Finish Them** to time out the loser for **${TIMEOUT_MINUTES} minutes**. Otherwise the match just ends.\n` +
+        `> A server can only have one match at a time. After it finishes, the next one waits **${MATCH_COOLDOWN_MS / 1000} seconds**.\n\n` +
         `*Part of the **Friendly** bot suite.*`,
       ephemeral: true,
     });
@@ -367,6 +417,9 @@ if (sub === "leaderboard") {
 
   // ── /unfriendly-mma fight @user ───────────────────────────────────────────
   if (sub === "fight") {
+    const block = getMatchBlock(interaction.guildId);
+    if (block) return interaction.reply(matchCooldownReply(block));
+
     await interaction.deferReply();
 
     const opponent     = interaction.options.getMember("opponent");
